@@ -30,3 +30,9 @@ class VisualContent:
     pagetype:str
     skip:bool
     value:any
+    def of(pagetype:str,value:any,skip:bool=False):
+        v=VisualContent()
+        v.pagetype=pagetype
+        v.skip=skip
+        v.value=value
+        return v

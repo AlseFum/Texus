@@ -167,7 +167,7 @@ def visit_internal(pack):
     if pack.entry == "mock":
         return pack
     
-    mime = first_valid(getmime(pack.entry),pack.mime,"text")
+    mime = first_valid(getmime(pack.entry),pack.mime if pack.mime is not "" else None,"text")
     # 根据 MIME 类型选择合适的 Port
     Dispatcher = Port.dispatch(mime)
     visualContent = Dispatcher.access(pack)

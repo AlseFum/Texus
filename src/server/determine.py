@@ -79,10 +79,8 @@ def determine_access_type(request: Request):
     
     # 判断逻辑
     if any(api_indicators):
-        print(f"DEBUG - Detected as API request")
         return Access.API
     elif any(web_indicators):
-        print(f"DEBUG - Detected as Web request")
         return Access.Web
     else:
         # 默认情况，可能是未知的客户端
