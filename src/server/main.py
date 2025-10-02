@@ -2,6 +2,7 @@ from fastapi import FastAPI,Query,Cookie,Request
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
+import glob
 from Database import getmime
 from Express import wrap
 import Port
@@ -9,6 +10,37 @@ from protocol.types import Access
 from .determine import determine_access_type
 
 app = FastAPI(title="Note Server", version="0.1.0")
+
+# 全局变量存储扫描到的assets目录
+ASSETS_DIRS = []
+
+def scan_assets_directories():
+    """启动时扫描Express目录下可能的assets目录"""
+    global ASSETS_DIRS
+    base_dir = os.path.join(os.path.dirname(__file__), "..", "Express")
+    base_dir = os.path.abspath(base_dir)
+    
+    # 扫描模式：寻找 */dist/assets 目录
+    patterns = [
+        os.path.join(base_dir, "*", "dist", "assets"),
+        os.path.join(base_dir, "*", "*", "dist", "assets"),
+    ]
+    
+    found_dirs = []
+    for pattern in patterns:
+        found_dirs.extend(glob.glob(pattern))
+    
+    # 去重并验证目录存在
+    ASSETS_DIRS = [d for d in set(found_dirs) if os.path.isdir(d)]
+    
+    print(f"扫描到 {len(ASSETS_DIRS)} 个assets目录:")
+    for assets_dir in ASSETS_DIRS:
+        print(f"  - {assets_dir}")
+    
+    return ASSETS_DIRS
+
+# 启动时扫描assets目录
+scan_assets_directories()
 
 # 配置 CORS
 app.add_middleware(
@@ -39,18 +71,11 @@ async def api_post(path: str, request: Request):
 #------------
 @app.get("/assets/{path:path}")
 async def serve_assets(path: str):
-    # 定义多个 assets 目录
-    base_dir = os.path.join(os.path.dirname(__file__), "..", "Express")
-    assets_dirs = [
-        os.path.join(base_dir, "note", "dist", "assets"),
-        os.path.join(base_dir, "console", "dist", "assets"), 
-        os.path.join(base_dir, "blog", "dist", "assets"),
-        os.path.join(base_dir, "img", "dist", "assets"),
-        # 可以继续添加更多目录
-    ]
+    # 使用启动时扫描到的assets目录
+    global ASSETS_DIRS
     
     # 遍历所有可能的 assets 目录
-    for assets_dir in assets_dirs:
+    for assets_dir in ASSETS_DIRS:
         file_path = os.path.join(assets_dir, path)
         
         if os.path.exists(file_path) and os.path.commonpath([assets_dir, file_path]) == assets_dir:
@@ -142,11 +167,7 @@ def visit_internal(pack):
     if pack.entry == "mock":
         return pack
     
-    # 确定最终使用的 MIME 类型
-    # 优先级：数据库中注册的 MIME > pack.mime > 默认 "text"
     mime = first_valid(getmime(pack.entry),pack.mime,"text")
-
-    
     # 根据 MIME 类型选择合适的 Port
     Dispatcher = Port.dispatch(mime)
     visualContent = Dispatcher.access(pack)

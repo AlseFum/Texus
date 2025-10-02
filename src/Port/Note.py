@@ -6,6 +6,7 @@ from datetime import datetime
 class NoteEntry:
     lastSaveTime = ""
     text = ""
+    auth = None
 class Note:
     def access(pack):
         op = first_valid(pack.query.get("op", None),"get")
