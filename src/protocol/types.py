@@ -10,7 +10,7 @@ class AccessPlatform(Enum):
 class Access:
     def __init__(self, who: Accessor, by: AccessPlatform, path: str, 
                  query: Dict[str,str], cookies: Dict[str,str], mime: str = "", 
-                 entry: str = "", body: Dict = None):
+                 entry: str = ""):
         self.who = who
         self.by = by
         self.path = path
@@ -18,7 +18,6 @@ class Access:
         self.cookies = cookies
         self.mime = mime
         self.entry = entry
-        self.body = body or {}
     
     # 类属性，方便访问枚举值
     User = Accessor.User

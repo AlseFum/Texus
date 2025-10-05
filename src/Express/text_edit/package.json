@@ -1,0 +1,23 @@
+{
+  "name": "noteserver-web-note",
+  "version": "1.0.0",
+  "description": "NoteServer 前端记事本应用，类似 note.ms",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.3.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.2.3",
+    "vite": "^4.4.0"
+  },
+  "keywords": [
+    "notepad"
+  ],
+  "author": "NoteServer",
+  "license": "MIT"
+}

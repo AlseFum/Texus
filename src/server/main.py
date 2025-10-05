@@ -1,43 +1,13 @@
 from fastapi import FastAPI,Query,Cookie,Request
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-import os
-import glob
 from Database import getmime
 from Express import wrap
 import Port
-from protocol.types import Access
-from .determine import determine_access_type
+from .assets_support import scan_assets_directories, serve
+from .funcs import replaceByBody, request2access
 
 app = FastAPI(title="Note Server", version="0.1.0")
-
-# 全局变量存储扫描到的assets目录
-ASSETS_DIRS = []
-
-def scan_assets_directories():
-    """启动时扫描Express目录下可能的assets目录"""
-    global ASSETS_DIRS
-    base_dir = os.path.join(os.path.dirname(__file__), "..", "Express")
-    base_dir = os.path.abspath(base_dir)
-    
-    # 扫描模式：寻找 */dist/assets 目录
-    patterns = [
-        os.path.join(base_dir, "*", "dist", "assets"),
-        os.path.join(base_dir, "*", "*", "dist", "assets"),
-    ]
-    
-    found_dirs = []
-    for pattern in patterns:
-        found_dirs.extend(glob.glob(pattern))
-    
-    # 去重并验证目录存在
-    ASSETS_DIRS = [d for d in set(found_dirs) if os.path.isdir(d)]
-    
-    print(f"扫描到 {len(ASSETS_DIRS)} 个assets目录:")
-    for assets_dir in ASSETS_DIRS:
-        print(f"  - {assets_dir}")
-    
-    return ASSETS_DIRS
 
 # 启动时扫描assets目录
 scan_assets_directories()
@@ -57,108 +27,30 @@ async def health_check():
 #------------
 @app.get("/api/{path:path}")
 async def api_get(path: str, request: Request):
-    pack = await request2pack(request)
-    # 修正 entry 和 path
+    pack = await request2access(request, path=path, by="api")
     pack.entry = path.split("/")[0] if path else ""
-    pack.path = path
-    pack.by = "api"  # 强制 platform 为 api
     return await visit(pack)
 
 @app.post("/api/{path:path}")
 async def api_post(path: str, request: Request):
-    body = await request.json()
-    return await visit(process_query(api_get(path, request), body))
+    pack = await request2access(request, path=path, by="api")
+    pack.entry = path.split("/")[0] if path else ""
+    return await visit(await replaceByBody(pack, request))
 #------------
 @app.get("/assets/{path:path}")
 async def serve_assets(path: str):
-    # 使用启动时扫描到的assets目录
-    global ASSETS_DIRS
-    
-    # 遍历所有可能的 assets 目录
-    for assets_dir in ASSETS_DIRS:
-        file_path = os.path.join(assets_dir, path)
-        
-        if os.path.exists(file_path) and os.path.commonpath([assets_dir, file_path]) == assets_dir:
-            # 确定 MIME 类型
-            media_type = None
-            if path.endswith('.js'):
-                media_type = 'application/javascript'
-            elif path.endswith('.css'):
-                media_type = 'text/css'
-            elif path.endswith('.json'):
-                media_type = 'application/json'
-            elif path.endswith('.woff') or path.endswith('.woff2'):
-                media_type = 'font/woff2' if path.endswith('.woff2') else 'font/woff'
-            elif path.endswith('.png'):
-                media_type = 'image/png'
-            elif path.endswith('.jpg') or path.endswith('.jpeg'):
-                media_type = 'image/jpeg'
-            elif path.endswith('.svg'):
-                media_type = 'image/svg+xml'
-            
-            return FileResponse(file_path, media_type=media_type)
-    
-    return {"error": "Asset not found"}
+    """服务 assets 文件"""
+    return serve(path)
 #------------   
 @app.get("/{path:path}")  # 使用 `{path:path}` 捕获任意路径
 async def visit_get(request: Request):
-    return await visit(await request2pack(request))
+    return await visit(await request2access(request))
 
 # POST 路由处理
 @app.post("/{path:path}")
 async def visit_post(request: Request):
-    try:
-        body = await request.json()
-    except:
-        body = {}
-    
-    return await visit(process_query(await request2pack(request),body))
-
-async def request2pack(request: Request):
-    """将请求转换为字典格式的 pack"""
-    # 解析路径信息
-    path = request.url.path
-    primary = path.split("/")[1] if path != "/" else ""
-    primary_entry, primary_mime = (primary.rsplit(".", 1) + [""])[:2]
-    
-    # 通过 User-Agent 判断请求类型
-    access_by = determine_access_type(request)
-    
-    # 优先使用 query 参数中的 role，然后是 fromScript（向后兼容）
-    role_param = request.query_params.get("role", "").lower()
-    if role_param in ["user", "script", "agent"]:
-        who = role_param
-    elif request.query_params.get("fromScript"):
-        who = "script" if request.query_params.get("fromScript") == "script" else "agent"
-    else:
-        who = "user"
-    pack = Access(
-        who=who,
-        by=access_by.value if hasattr(access_by, 'value') else str(access_by),
-        path=path,
-        query=dict(request.query_params),
-        cookies=dict(request.cookies),
-        mime=primary_mime,
-        entry=primary_entry,
-        body={}
-    )
-    return pack
-def process_query(pack, body):
-    """只对查询参数进行特殊值插值处理"""
-    if not body:
-        return pack
-    for q_key, q_value in list(pack.query.items()):
-        if isinstance(q_value, str) and q_value.startswith("$"):
-            body_key = q_value[1:]
-            if body_key in body:
-                pack.query[q_key] = str(body[body_key])
-    for q_key, q_value in list(pack.cookie.items()):
-        if isinstance(q_value, str) and q_value.startswith("$"):
-            body_key = q_value[1:]
-            if body_key in body:
-                pack.cookies[q_key] = str(body[body_key])
-    
-    return pack
+    return await visit(await replaceByBody(await request2access(request), request))
+#------------
 
 async def visit(pack):
     return visit_internal(pack)
