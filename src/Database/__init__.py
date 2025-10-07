@@ -1,3 +1,4 @@
+from protocol.types import File
 tables={}
 
 class Table:
@@ -57,5 +58,15 @@ def getmime(path):
     return mime_table.get(path, None)
 
 from datetime import datetime
-Table.of("PUB").set("a","234|b\np")
-Table.of("PUB_TIME").set("a",datetime.now().isoformat())
+Table.of("PUB").set("a",File(mime="text", value={"text": "234|b\np", "lastSavedTime": datetime.now()}))
+
+# Gen 测试模板
+Table.of("PUB").set("test_gen", File(mime="gen", value={
+    "text": "你好[世界|朋友|同志]！今天天气[真|很|超级]{好|不错|棒}呢。",
+    "lastSavedTime": datetime.now()
+}))
+
+Table.of("PUB").set("greeting", File(mime="gen", value={
+    "text": "{早上|中午|晚上}好啊，[很|非常|特别][开心|高兴|愉快]见到你！",
+    "lastSavedTime": datetime.now()
+}))

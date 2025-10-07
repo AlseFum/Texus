@@ -1,59 +1,39 @@
-import json
 from util import first_valid
 from Database import pub_get, pub_set
 from protocol.types import FinalVis, File
 from datetime import datetime
-from Database import Table
 
 
 class Text:
     @staticmethod
-    def get_data(entry_or_path):
+    def get_data(entry):
         """从数据库获取文本数据，返回File对象"""
-        text_table = Table.of("text")
-        text_data = text_table.get(entry_or_path)
-        
-        if text_data is not None:
-            # 如果从text表获取到数据，直接返回
-            if isinstance(text_data, File):
-                return text_data
-            elif isinstance(text_data, dict):
-                right_format = File(mime="text", value={
-                    "text": text_data.get("text", ""),
-                    "lastSaveTime": text_data.get("lastSaveTime", datetime.now().isoformat())
-                })
-                text_table.set(entry_or_path, right_format._value)
-                return right_format
-            else:
-                right_format = File(mime="text", value={
-                    "text": str(text_data),
-                    "lastSaveTime": datetime.now().isoformat()
-                })
-                text_table.set(entry_or_path, right_format._value)
-                return right_format
-        
-        # 如果text表没有数据，尝试从pub表获取
-        pub_data = pub_get(entry_or_path)
+        # 直接从pub表获取数据
+        pub_data = pub_get(entry)
+        if pub_data is None:
+        # 如果没有数据，返回空的File
+          return File(mime="text", value={"text": "No data", "lastSavedTime": None})
         if pub_data is not None:
             # 将pub数据转换为File对象
-            if isinstance(pub_data, dict):
+            if isinstance(pub_data, File):
+                return pub_data
+            elif isinstance(pub_data, dict):
+                # 如果已经是正确格式的字典
                 right_format = File(mime="text", value={
                     "text": pub_data.get("text", ""),
-                    "lastSaveTime": pub_data.get("lastSaveTime", datetime.now().isoformat())
+                    "lastSavedTime": pub_data.get("lastSavedTime", datetime.now())
                 })
-                text_table.set(entry_or_path, right_format._value)
+                pub_set(entry, right_format)
                 return right_format
             else:
+                # 如果是原始字符串数据，转换为File对象
                 right_format = File(mime="text", value={
                     "text": str(pub_data),
-                    "lastSaveTime": datetime.now().isoformat()
+                    "lastSavedTime": datetime.now()
                 })
-                text_table.set(entry_or_path, right_format._value)
+                pub_set(entry, right_format._value)
                 return right_format
         
-        # 如果都没有数据，返回空的File
-        return File(mime="text", value={"text": "No data", "lastSaveTime": ""})
-    
     @staticmethod
     def getByWeb(pack):
         """通过Web方式获取文本"""
@@ -64,7 +44,12 @@ class Text:
     def getByApi(pack):
         """通过API方式获取文本"""
         text_file = Text.get_data(pack.entry or pack.path)
-        return FinalVis.of("text", text_file._value, skip=True)
+        # 转换datetime对象为ISO字符串用于API返回
+        response_value = {
+            "text": text_file._value.get("text", ""),
+            "lastSavedTime": text_file._value.get("lastSavedTime").isoformat() if text_file._value.get("lastSavedTime") else ""
+        }
+        return FinalVis.of("text", response_value, skip=True)
     
     @staticmethod
     def set(pack):
@@ -78,21 +63,25 @@ class Text:
         except:
             pass  # 如果解码失败，使用原始内容
         
-        # 创建File对象
+        # 创建File对象，保存datetime对象
+        saved_time = datetime.now()
         file_data = {
             "text": content,
-            "lastSaveTime": datetime.now().isoformat()
+            "lastSavedTime": saved_time
         }
         text_file = File(mime="text", value=file_data)
         
-        Table.of("text").set(pack.entry, text_file._value)
-        
-        print(f"DEBUG - pack.who: {pack.who}, pack.by: {pack.by}, pack.path: {pack.path}, pack.entry: {pack.entry}")
-        print(f"Set text file: {pack.who} {pack.by} {pack.path} -> {pack.entry}", file_data)
+        # 直接保存到pub表
+        pub_set(pack.entry, text_file._value)
+
+        print(f"Set text file: {pack.who} {pack.by} {pack.path} -> {pack.entry}", {"text": content, "lastSavedTime": saved_time.isoformat()})
         response_data = {
             "success": True,
             "message": "保存成功",
-            "data": file_data
+            "data": {
+                "text": content,
+                "lastSavedTime": saved_time.isoformat()
+            }
         }
         
         return FinalVis.of("text", response_data, skip=True)
