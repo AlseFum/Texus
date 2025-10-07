@@ -27,14 +27,12 @@ async def health_check():
 #------------
 @app.get("/api/{path:path}")
 async def api_get(path: str, request: Request):
-    pack = await request2access(request, path=path, by="api")
-    pack.entry = path.split("/")[0] if path else ""
+    pack = request2access(request, path=f"/api/{path}", by="api")
     return await visit(pack)
 
 @app.post("/api/{path:path}")
 async def api_post(path: str, request: Request):
-    pack = await request2access(request, path=path, by="api")
-    pack.entry = path.split("/")[0] if path else ""
+    pack = request2access(request, path=f"/api/{path}", by="api")
     return await visit(await replaceByBody(pack, request))
 #------------
 @app.get("/assets/{path:path}")
@@ -44,7 +42,7 @@ async def serve_assets(path: str):
 #------------   
 @app.get("/{path:path}")  # 使用 `{path:path}` 捕获任意路径
 async def visit_get(request: Request):
-    return await visit(await request2access(request))
+    return await visit( request2access(request))
 
 # POST 路由处理
 @app.post("/{path:path}")
@@ -54,13 +52,13 @@ async def visit_post(request: Request):
 
 async def visit(pack):
     return visit_internal(pack)
-from util import first_valid
+from util import first_avail
 def visit_internal(pack):
     if pack.entry == "mock":
         return pack
     
-    mime = first_valid(getmime(pack.entry),pack.mime if pack.mime is not "" else None,"text")
+    mime = first_avail(pack.mime, getmime(pack.entry), "text")
     # 根据 MIME 类型选择合适的 Port
     Dispatcher = Port.dispatch(mime)
     visualContent = Dispatcher.access(pack)
-    return visualContent.value if visualContent.skip else wrap(visualContent)
+    return visualContent.content() if visualContent.skip() else wrap(visualContent)

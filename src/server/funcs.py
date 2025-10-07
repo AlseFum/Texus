@@ -117,12 +117,16 @@ def request2access(
     
     # 确定entry
     if entry is None:
-        primary = path.split("/")[1] if path != "/" else ""
+        path_parts = path.split("/")
+        # 取最后一个非空部分作为primary
+        primary = next((part for part in reversed(path_parts) if part), "")
         entry = primary.rsplit(".", 1)[0] if "." in primary else primary
     
     # 确定mime类型
     if mime is None:
-        primary = path.split("/")[1] if path != "/" else ""
+        path_parts = path.split("/")
+        # 取最后一个非空部分作为primary
+        primary = next((part for part in reversed(path_parts) if part), "")
         primary_entry, primary_mime = (primary.rsplit(".", 1) + [""])[:2]
         mime = primary_mime or getmime(entry) or "text"
     
@@ -143,8 +147,7 @@ def request2access(
         who=who,
         by=by if hasattr(by, 'value') else str(by),
         query=dict(request.query_params),
-        cookies=dict(request.cookies),
-        body={}
+        cookies=dict(request.cookies)
     )
 
 

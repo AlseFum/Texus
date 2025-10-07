@@ -36,6 +36,9 @@ import { ref, computed, onMounted } from 'vue'
 // 响应式数据
 const content = ref(inlineContent)
 
+// 检查是否需要从服务器请求数据
+const useRequest = typeof window !== 'undefined' && window.inlineContent === undefined
+
 // 计算属性
 const noteTitle = computed(() => {
   const rawId = getCurrentNoteId()
@@ -61,46 +64,50 @@ const getCurrentNoteId = () => {
 const loadNote = async () => {
   console.log("Loading text file", getCurrentNoteId())
   try {
-    const response = await fetch(`/api/${getCurrentNoteId()}?op=get`)
-    const textFileObj = await response.json()
-    console.log("Got textFileObj", textFileObj)
-    
-    // TextFile对象结构: { content: string, lastSaveTime: string, auth: any }
-    let text = ""
-    if (typeof textFileObj === 'object' && textFileObj !== null) {
-      if ('content' in textFileObj) {
-        // TextFile格式：直接使用content字段
-        text = textFileObj.content || ""
-      } else if ('text' in textFileObj) {
-        // 兼容旧的note格式
-        text = textFileObj.text || ""
+    const response = await fetch(`/api/${getCurrentNoteId()}?op=get`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       }
-    } else if (typeof textFileObj === 'string') {
-      // 如果直接是字符串
-      text = textFileObj
-    } else {
-      // 其他情况转为字符串
-      text = String(textFileObj || "")
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
     }
     
-    // 确保 text 是字符串
+    const result = await response.json()
+    console.log("API Response:", result)
+    
+    // 处理新的API响应格式
+    let text = ""
+    if (result && typeof result === 'object') {
+      // 优先使用content字段，然后text字段
+      text = result.content || result.text || ""
+    } else if (typeof result === 'string') {
+      text = result
+    } else {
+      text = String(result || "")
+    }
+    
+    // 确保文本是字符串并处理编码
     text = String(text)
     
-    // 尝试解码，防止多重编码（只在文本看起来被编码时才解码）
+    // 处理URL编码的内容
     if (text.includes('%')) {
       try {
-        content.value = decodeURIComponent(text)
-      } catch {
-        // 如果解码失败，使用原始文本
-        content.value = text
+        text = decodeURIComponent(text)
+      } catch (e) {
+        console.warn('URL解码失败:', e)
       }
-    } else {
-      // 没有编码标记，直接使用
-      content.value = text
     }
+    
+    content.value = text
+    
   } catch (error) {
-    console.warn('加载文本文件失败:', error)
+    console.error('加载文本文件失败:', error)
     content.value = ""
+    // 可以在这里显示错误提示
   }
 }
 
@@ -108,18 +115,33 @@ const saveNote = async () => {
   try {
     const fileId = getCurrentNoteId()
     const encodedContent = encodeURIComponent(content.value)
-    const response = await fetch(`/api/${fileId}?op=set&content=${encodedContent}`)
+    
+    const response = await fetch(`/api/${fileId}?op=set&content=不是${encodedContent}`, {
+      method: 'GET', // 后端使用GET方法处理set操作
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    
     const result = await response.json()
+    console.log('Save response:', result)
     
     if (result.success) {
       console.log('保存成功，时间:', result.data.lastSaveTime)
-      // 可以在这里添加保存成功的UI反馈
+      // 保存成功的反馈
     } else {
       console.error('保存失败:', result.message)
-      // 可以在这里添加保存失败的UI反馈
+      // 保存失败的反馈
+      alert(`保存失败: ${result.message}`)
     }
   } catch (error) {
     console.error('保存文本文件失败:', error)
+    alert('保存失败，请检查网络连接')
   }
 }
 
@@ -131,6 +153,9 @@ const clearNote = () => {
 
 // 生命周期
 onMounted(() => {
-  loadNote()
+  // 只有当useRequest为true时才从服务器加载note
+  if (useRequest) {
+    loadNote()
+  }
 })
 </script>

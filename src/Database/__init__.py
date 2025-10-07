@@ -1,6 +1,28 @@
-from .database import pubdb,hiddb,MIMEs
-def get(path):
-    return {"value":"nihao","pagetype":"text","useWeb":True}
+tables={}
+
+class Table:
+    def __init__(self, string):
+        self.inner = {}
+        self.name = string
+        tables[string] = self
+    
+    @staticmethod
+    def of(string):
+        if string in tables:
+            return tables[string]
+        else:
+            return Table(string)
+    def get(self, key, otherwise=None):
+        return self.inner.get(key, otherwise)
+    
+    def set(self, key, value):
+        self.inner[key] = value
+    
+    def __getitem__(self, key):
+        return self.get(key, None)
+    
+    def __setitem__(self, key, value):
+        self.set(key, value)
 def pub_get(entry):
     """获取公共条目"""
     pub_table = Table.of("PUB")
@@ -34,26 +56,6 @@ def getmime(path):
     mime_table = Table.of("MIME")
     return mime_table.get(path, None)
 
-tables={
-
-}
-class Table:
-    inner={}
-    def __init__(self,string):
-        if string in tables:
-            return tables[string]
-        tables[string]=self
-    def of(string):
-        if string in tables:
-            return tables[string]
-        else:
-            tables[string]=Table(string)
-            return tables[string]
-    def get(self,string,otherwise=None):
-        return self.inner.get(string,otherwise)
-    def set(self,string,value):
-        self.inner[string]=value
-    def __getitem__(self,string):
-        return self.get(string,None)
-    def __setitem__(self,string,value):
-        self.set(string,value)
+from datetime import datetime
+Table.of("PUB").set("a","234|b\np")
+Table.of("PUB_TIME").set("a",datetime.now().isoformat())

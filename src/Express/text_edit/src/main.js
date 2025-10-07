@@ -7,4 +7,3 @@ const app = createApp(App)
 
 // 挂载到 DOM
 app.mount('#app')
-console.log("why console")

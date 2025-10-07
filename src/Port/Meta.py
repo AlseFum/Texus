@@ -1,4 +1,4 @@
-from protocol.types import VisualContent
+from protocol.types import FinalVis
 class Meta:
     def access(_1):
-        return VisualContent.of("raw","oh,shit")
+        return FinalVis.of("raw","This is meta page, will show something for the affix")

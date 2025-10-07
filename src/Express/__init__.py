@@ -1,47 +1,27 @@
 import os
-from protocol.types import VisualContent
+from protocol.types import FinalVis
 from fastapi.responses import HTMLResponse, JSONResponse
-mimes={
 
-}
-def wrap(v: VisualContent):
-    if v.pagetype in mimes:
-        return mimes[v.pagetype](v)
-    return useRaw(v)
 def useRaw(v):
     content = extract_str(v)
     js_content = content.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r')
     
     return HTMLResponse(content=RAW_HTML_TEMPLATE.replace("/*!insert*/", f'text = "{js_content}";'))
 def useNote(v):
-    html = get_template("note")
+    html = get_template("text_edit")
     print("use note")
     content = extract_str(v)
     js_content = content.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r')
     js_assignment = f'var inlineContent="{js_content}";'    
     return HTMLResponse(content=html.replace("/*!insert*/", js_assignment))
-mimes["note"]=useNote
-mimes["raw"]=useRaw
+
 
 
 def extract_str(v):
-  if v is not None and v.value is not None:
-      if hasattr(v.value, 'to_dict') and callable(getattr(v.value, 'to_dict')):
-          # 优先使用 to_dict() 方法
-          return str(v.value.to_dict())
-      elif hasattr(v.value, '__dict__') and not isinstance(v.value.__dict__, dict):
-          # 如果 __dict__ 被重写为非字典，使用 vars()
-          return str(vars(v.value))
-      elif hasattr(v.value, '__dict__'):
-          # 自定义类对象，使用实际的 __dict__ 属性
-          return str(v.value.__dict__)
-      elif isinstance(v.value, dict):
-          # 已经是字典，直接转字符串
-          return str(v.value)
-      else:
-          # 其他类型，转字符串
-          return str(v.value)
-  return ""
+    # 统一使用 content() 方法进行字符串转换
+    if v is not None and hasattr(v, "content") and callable(getattr(v, "content")):
+        return str(v.content())
+    return ""
 def get_template(where:str):
   html=""
   template_path = os.path.join(os.path.dirname(__file__), where+"/dist/index.html")
@@ -82,3 +62,14 @@ RAW_HTML_TEMPLATE = """<!doctype html>
   </script>
 </body>
 </html>"""
+
+mimes={
+
+}
+mimes["note"]=useNote
+mimes["text"]=useNote
+mimes["raw"]=useRaw
+def wrap(v: FinalVis):
+    if v.mime() in mimes:
+        return mimes[v.mime()](v)
+    return useRaw(v)

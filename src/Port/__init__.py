@@ -1,19 +1,16 @@
 from .Meta import Meta
-from .Note import Note
-from .GenNote import GenNote
-from protocol.types import VisualContent
+from .Text import Text
+from protocol.types import FinalVis
 from Database import pub_get
-
-class Raw:
+class Port:
     def access(pack):
-        return VisualContent.of("raw",pub_get(pack.entry) if pub_get(pack.entry) else "(empty)")
-
+        return FinalVis.of("raw",pub_get(pack.entry) if pub_get(pack.entry) is not None else "(empty)")
+class Raw(Port):
+    pass
 
 def dispatch(which):
     if which == "meta":
         return Meta
-    elif which in ["gen"]:
-        return GenNote
     elif which in ["raw"]:
         return Raw
-    return Note
+    return Text
