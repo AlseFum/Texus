@@ -4,82 +4,67 @@ from Database import pub_get, pub_set
 from protocol.types import FinalVis, File
 from datetime import datetime
 from Database import Table
-class TextFile(File):
-    """文本文件数据类"""
-    def __init__(self, text="", lastSaveTime=""):
-        super().__init__(mime="text", value=text)
-        self.text = text
-        self.lastSaveTime = lastSaveTime
-    
-    def content(self):
-        """返回文本内容"""
-        return self.text
-    def to_dict(self):
-        return {
-            "text": self.text,
-            "lastSaveTime": self.lastSaveTime
-        }
-    
-    @classmethod
-    def of(cls, text="", lastSaveTime=""):
-        """TextFile的工厂方法"""
-        cls.mime="text"
-        return cls(text, lastSaveTime)
 
 
 class Text:
     @staticmethod
     def get_data(entry_or_path):
-        """从数据库获取文本数据，返回TextFile对象"""
+        """从数据库获取文本数据，返回File对象"""
         text_table = Table.of("text")
         text_data = text_table.get(entry_or_path)
         
         if text_data is not None:
             # 如果从text表获取到数据，直接返回
-            if isinstance(text_data, TextFile):
+            if isinstance(text_data, File):
                 return text_data
             elif isinstance(text_data, dict):
-                right_format=TextFile(text=text_data.get("text", ""), 
-                              lastSaveTime=text_data.get("lastSaveTime", datetime.now().isoformat()))
-                text_table.set(entry_or_path, right_format.to_dict())
+                right_format = File(mime="text", value={
+                    "text": text_data.get("text", ""),
+                    "lastSaveTime": text_data.get("lastSaveTime", datetime.now().isoformat())
+                })
+                text_table.set(entry_or_path, right_format._value)
                 return right_format
             else:
-                right_format=TextFile(text=str(text_data), lastSaveTime=datetime.now().isoformat())
-                text_table.set(entry_or_path, right_format.to_dict())
+                right_format = File(mime="text", value={
+                    "text": str(text_data),
+                    "lastSaveTime": datetime.now().isoformat()
+                })
+                text_table.set(entry_or_path, right_format._value)
                 return right_format
         
         # 如果text表没有数据，尝试从pub表获取
         pub_data = pub_get(entry_or_path)
         if pub_data is not None:
-            # 将pub数据转换为TextFile对象
+            # 将pub数据转换为File对象
             if isinstance(pub_data, dict):
-                right_format=TextFile(text=pub_data.get("text", ""), 
-                              lastSaveTime=pub_data.get("lastSaveTime", datetime.now().isoformat()))
-                text_table.set(entry_or_path, right_format.to_dict())
+                right_format = File(mime="text", value={
+                    "text": pub_data.get("text", ""),
+                    "lastSaveTime": pub_data.get("lastSaveTime", datetime.now().isoformat())
+                })
+                text_table.set(entry_or_path, right_format._value)
                 return right_format
             else:
-                right_format=TextFile(text=str(pub_data), lastSaveTime=datetime.now().isoformat())
-                text_table.set(entry_or_path, right_format)
+                right_format = File(mime="text", value={
+                    "text": str(pub_data),
+                    "lastSaveTime": datetime.now().isoformat()
+                })
+                text_table.set(entry_or_path, right_format._value)
                 return right_format
         
-        # 如果都没有数据，返回空的TextFile
-        return TextFile.of("No data","")
-        # return TextFile(text="", lastSaveTime=datetime.now().isoformat())
+        # 如果都没有数据，返回空的File
+        return File(mime="text", value={"text": "No data", "lastSaveTime": ""})
     
     @staticmethod
     def getByWeb(pack):
         """通过Web方式获取文本"""
         text_file = Text.get_data(pack.entry or pack.path)
-        return FinalVis.of("text", text_file.content())
+        return FinalVis.of("text", text_file._value.get("text", ""))
     
     @staticmethod
     def getByApi(pack):
         """通过API方式获取文本"""
         text_file = Text.get_data(pack.entry or pack.path)
-        return FinalVis.of("text", {
-            "text": text_file.text,
-            "lastSaveTime": text_file.lastSaveTime
-        }, skip=True)
+        return FinalVis.of("text", text_file._value, skip=True)
     
     @staticmethod
     def set(pack):
@@ -93,20 +78,21 @@ class Text:
         except:
             pass  # 如果解码失败，使用原始内容
         
-        # 创建TextFile对象
-        text_file = TextFile(
-            text=content,
-            lastSaveTime=datetime.now().isoformat()
-        )
+        # 创建File对象
+        file_data = {
+            "text": content,
+            "lastSaveTime": datetime.now().isoformat()
+        }
+        text_file = File(mime="text", value=file_data)
         
-        Table.of("text").set(pack.entry, text_file)
+        Table.of("text").set(pack.entry, text_file._value)
         
         print(f"DEBUG - pack.who: {pack.who}, pack.by: {pack.by}, pack.path: {pack.path}, pack.entry: {pack.entry}")
-        print(f"Set text file: {pack.who} {pack.by} {pack.path} -> {pack.entry}", text_file.to_dict())
+        print(f"Set text file: {pack.who} {pack.by} {pack.path} -> {pack.entry}", file_data)
         response_data = {
             "success": True,
             "message": "保存成功",
-            "data": text_file.to_dict()
+            "data": file_data
         }
         
         return FinalVis.of("text", response_data, skip=True)
