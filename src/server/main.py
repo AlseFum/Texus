@@ -1,7 +1,7 @@
 from fastapi import FastAPI,Query,Cookie,Request
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from Database import getmime
+from Database import getmime, start_auto_backup
 from Express import wrap
 import Port
 from .assets_support import scan_assets_directories, serve
@@ -9,8 +9,16 @@ from .funcs import replaceByBody, request2access
 
 app = FastAPI(title="Note Server", version="0.1.0")
 
-# 启动时扫描assets目录
-scan_assets_directories()
+# 启动事件
+@app.on_event("startup")
+async def startup_event():
+    """服务器启动时的初始化"""
+    print("🚀 Note Server 正在启动...")
+    # 启动自动备份
+    start_auto_backup()
+    print("✓ 所有服务已启动")
+
+
 
 # 配置 CORS
 app.add_middleware(
@@ -27,14 +35,15 @@ async def health_check():
 #------------
 @app.get("/api/{path:path}")
 async def api_get(path: str, request: Request):
-    pack = request2access(request, path=f"/api/{path}", by="api")
+    pack = request2access(request, path=path, by="api")
     return await visit(pack)
 
 @app.post("/api/{path:path}")
 async def api_post(path: str, request: Request):
-    pack = request2access(request, path=f"/api/{path}", by="api")
+    pack = request2access(request, path=path, by="api")
     return await visit(await replaceByBody(pack, request))
 #------------
+scan_assets_directories()
 @app.get("/assets/{path:path}")
 async def serve_assets(path: str):
     """服务 assets 文件"""
@@ -47,7 +56,7 @@ async def visit_get(request: Request):
 # POST 路由处理
 @app.post("/{path:path}")
 async def visit_post(request: Request):
-    return await visit(await replaceByBody(await request2access(request), request))
+    return await visit(await replaceByBody(request2access(request), request))
 #------------
 
 async def visit(pack):
@@ -60,5 +69,5 @@ def visit_internal(pack):
     mime = first_avail(pack.mime, getmime(pack.entry), "text")
     # 根据 MIME 类型选择合适的 Port
     Dispatcher = Port.dispatch(mime)
-    visualContent = Dispatcher.access(pack)
-    return visualContent.content() if visualContent.skip() else wrap(visualContent)
+    output = Dispatcher.access(pack)
+    return output.content() if output.skip() else wrap(output)

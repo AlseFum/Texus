@@ -1,6 +1,6 @@
 import os
-from protocol.types import FinalVis
-from fastapi.responses import HTMLResponse, JSONResponse
+from protocol.types import FinalVis,Renderee
+from util import HTMLResponse
 
 def useRaw(v):
     content = extract_str(v)
@@ -9,18 +9,17 @@ def useRaw(v):
     return HTMLResponse(content=RAW_HTML_TEMPLATE.replace("/*!insert*/", f'text = "{js_content}";'))
 def useNote(v):
     html = get_template("text_edit")
-    print("use note")
-    content = extract_str(v)
-    js_content = content.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r')
+    js_content = extract_str(v).replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r')
     js_assignment = f'var inlineContent="{js_content}";'    
     return HTMLResponse(content=html.replace("/*!insert*/", js_assignment))
 
-
-
 def extract_str(v):
-    # 统一使用 content() 方法进行字符串转换
-    if v is not None and hasattr(v, "content") and callable(getattr(v, "content")):
-        return str(v.content())
+    # 优先使用 to_raw 方法，其次 content 方法
+    if v is not None:
+        if hasattr(v, "to_raw") and callable(getattr(v, "to_raw")):
+            return str(v.to_raw())
+        if hasattr(v, "content") and callable(getattr(v, "content")):
+            return str(v.content())
     return ""
 def get_template(where:str):
   html=""
@@ -69,7 +68,7 @@ mimes={
 mimes["note"]=useNote
 mimes["text"]=useNote
 mimes["raw"]=useRaw
-def wrap(v: FinalVis):
+def wrap(v: Renderee):
     if v.mime() in mimes:
         return mimes[v.mime()](v)
     return useRaw(v)

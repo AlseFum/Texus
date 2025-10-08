@@ -1,0 +1,127 @@
+{
+  "timestamp": "20251008_194441",
+  "tables": {
+    "PUB": {
+      "a": {
+        "_type": "File",
+        "mime": "text",
+        "value": {
+          "text": "text text",
+          "lastSavedTime": "2025-10-08 19:38:41.202634"
+        }
+      },
+      "test_gen": {
+        "_type": "File",
+        "mime": "gen",
+        "value": {
+          "text": "你好[世界|朋友|同志]！今天天气[真|很|超级]{好|不错|棒}呢。",
+          "lastSavedTime": "2025-10-08 19:38:41.202870"
+        }
+      },
+      "greeting": {
+        "_type": "File",
+        "mime": "gen",
+        "value": {
+          "text": "{早上|中午|晚上}好啊，[很|非常|特别][开心|高兴|愉快]见到你！",
+          "lastSavedTime": "2025-10-08 19:38:41.202878"
+        }
+      },
+      "test_weight": {
+        "_type": "File",
+        "mime": "gen",
+        "value": {
+          "text": "greeting\n    你好\n    :2:早安\n    :3:晚上好\n",
+          "lastSavedTime": "2025-10-08 19:38:41.202881"
+        }
+      },
+      "test_variable": {
+        "_type": "File",
+        "mime": "gen",
+        "value": {
+          "text": "$name = \"艾莉丝\"\n$age : num\nmain\n    我的名字是$name，年龄是$age岁。\n",
+          "lastSavedTime": "2025-10-08 19:38:41.202883"
+        }
+      },
+      "test_expression": {
+        "_type": "File",
+        "mime": "gen",
+        "value": {
+          "text": "$x : num\n$y : num\ncalc\n    #{$x = 10}#{$y = 20}\n    $x + $y = #[$x + $y]\n    $x * $y = #[$x * $y]\n",
+          "lastSavedTime": "2025-10-08 19:38:41.202885"
+        }
+      },
+      "test_side_effect": {
+        "_type": "File",
+        "mime": "gen",
+        "value": {
+          "text": "$count : num\ncounter\n    开始计数: $count\n    #{$count++}第一次: $count\n    #{$count++}第二次: $count\n    #{$count += 10}加10后: $count\n",
+          "lastSavedTime": "2025-10-08 19:38:41.202888"
+        }
+      },
+      "test_inline": {
+        "_type": "File",
+        "mime": "gen",
+        "value": {
+          "text": "story\n    英雄#(勇敢地|小心翼翼地|快速地)走进了森林。\n    #(他|她)看到了一只#(老虎|狮子|熊)。\n",
+          "lastSavedTime": "2025-10-08 19:38:41.202890"
+        }
+      },
+      "test_item_ref": {
+        "_type": "File",
+        "mime": "gen",
+        "value": {
+          "text": "name\n    艾莉丝\n    鲍勃\n    查理\n\nweapon\n    长剑\n    法杖\n    弓箭\n\ncharacter\n    角色: #name\n    武器: #weapon\n",
+          "lastSavedTime": "2025-10-08 19:38:41.202892"
+        }
+      },
+      "test_dynamic_weight": {
+        "_type": "File",
+        "mime": "gen",
+        "value": {
+          "text": "$mood : num\ngreeting\n    #{$mood = 5}\n    心情指数: $mood\n    状态: #(#[$mood]:开心|#[$mood * 2]:难过|普通)\n",
+          "lastSavedTime": "2025-10-08 19:38:41.202895"
+        }
+      },
+      "test_conditional": {
+        "_type": "File",
+        "mime": "gen",
+        "value": {
+          "text": "$score : num\nresult\n    #{$score = 85}\n    你的分数是: $score\n    评价: #[$score >= 90 ? \"优秀\" : \"继续努力\"]\n",
+          "lastSavedTime": "2025-10-08 19:38:41.202897"
+        }
+      },
+      "test_character": {
+        "_type": "File",
+        "mime": "gen",
+        "value": {
+          "text": "// 角色生成器\n$hp : num\n$name = #names\n$weapon = #weapons\n\ndice\n    1\n    2\n    3\n    :2:4\n    :2:5\n    6\n\nnames\n    艾莉丝\n    鲍勃\n    :3:查理\n\nweapons\n    长剑\n    法杖\n    弓箭\n\ncharacter\n    #{$hp = #[50 + #dice * 10]}\n    ===角色卡===\n    名字: $name\n    生命值: $hp\n    武器: $weapon\n    状态: #[$hp > 70 ? \"优秀\" : \"一般\"]\n\nstory\n    #character\n    \n    $name踏上了冒险之旅。\n    #(他|她|它)手持$weapon，准备迎接挑战。\n",
+          "lastSavedTime": "2025-10-08 19:38:41.202899"
+        }
+      },
+      "test_consistency": {
+        "_type": "File",
+        "mime": "gen",
+        "value": {
+          "text": "name\n    Alice\n    Bob\n    Charlie\n\n// 每次引用都会重新生成\ndifferent\n    #name meets #name\n\n// 使用变量保持一致\n$person = #name\nsame\n    $person meets $person\n",
+          "lastSavedTime": "2025-10-08 19:38:41.202902"
+        }
+      },
+      "test_recursive": {
+        "_type": "File",
+        "mime": "gen",
+        "value": {
+          "text": "$step : num\n\naction\n    跑步\n    跳跃\n    攻击\n\nsequence\n    #{$step++}步骤$step: #action\n    #{$step++}步骤$step: #action\n    #{$step++}步骤$step: #action\n",
+          "lastSavedTime": "2025-10-08 19:38:41.202904"
+        }
+      },
+      "test_optional": {
+        "_type": "File",
+        "mime": "gen",
+        "value": {
+          "text": "optional\n    有内容\n    \n    :2:另一个内容\n\nmain\n    结果: #optional结束\n",
+          "lastSavedTime": "2025-10-08 19:38:41.202913"
+        }
+      }
+    }
+  }
+}

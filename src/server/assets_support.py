@@ -3,7 +3,7 @@ Assets 支持模块
 """
 import os
 import glob
-from fastapi.responses import FileResponse
+from util import FileResponse
 
 # 全局变量存储扫描到的assets目录
 ASSETS_DIRS = []

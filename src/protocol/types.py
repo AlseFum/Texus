@@ -19,9 +19,9 @@ class Access:
     Script = "script"
     Agent = "agent"
     API = "api"
-from abc import ABC, abstractmethod
 
-class Renderee(ABC):
+
+class Renderee():
     """渲染接口，定义所有可渲染对象的基本行为"""
     
     def __init__(self, mime: str = "", value: any = None, skip: bool = False):
@@ -53,8 +53,4 @@ class FinalVis(Renderee):
 class File(Renderee):
     """文件对象实现"""
     #
-    def cast_to(self,cls):
-        pass
-    def from_cls(self,cls):
-        pass
-    pass  # 继承父类的所有功能
+    lastModifiedTime = None

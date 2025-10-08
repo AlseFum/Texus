@@ -1,4 +1,4 @@
-from fastapi import Request
+from util import Request
 from protocol.types import Access
 from Database import getmime
 
@@ -115,27 +115,48 @@ def request2access(
     if path is None:
         path = request.url.path
     
-    # 确定entry
-    if entry is None:
-        path_parts = path.split("/")
-        # 取最后一个非空部分作为primary
-        primary = next((part for part in reversed(path_parts) if part), "")
-        entry = primary.rsplit(".", 1)[0] if "." in primary else primary
+    # 过滤掉空的路径部分
+    path_parts = [part for part in path.split("/") if part]
     
-    # 确定mime类型
+    # 解析路径：第一个部分作为 primary，剩余部分作为 tags
+    if path_parts:
+        primary = path_parts[0]
+        path_tags = path_parts[1:]  # 剩余的路径片段
+    else:
+        primary = ""
+        path_tags = []
+    
+    # 确定 entry 和 mime
+    if entry is None:
+        # 从 primary 中分离 entry 和 mime（如果有扩展名）
+        if "." in primary:
+            entry, primary_mime = primary.rsplit(".", 1)
+        else:
+            entry = primary
+            primary_mime = ""
+    else:
+        primary_mime = ""
+    
+    # 确定 mime 类型
     if mime is None:
-        path_parts = path.split("/")
-        # 取最后一个非空部分作为primary
-        primary = next((part for part in reversed(path_parts) if part), "")
-        primary_entry, primary_mime = (primary.rsplit(".", 1) + [""])[:2]
         mime = primary_mime or getmime(entry) or "text"
+    
+    # 合并 query 参数
+    # 1. 先获取 URL 查询参数
+    query_dict = dict(request.query_params)
+    
+    # 2. 将路径片段作为标记添加到 query（值为 True）
+    for tag in path_tags:
+        # 如果 tag 包含扩展名，去掉扩展名
+        tag_key = tag.rsplit(".", 1)[0] if "." in tag else tag
+        query_dict[tag_key] = True
     
     # 确定访问者类型
     if who is None:
-        who = request.query_params.get("role", "").lower() 
+        who = query_dict.get("role", "").lower() if isinstance(query_dict.get("role"), str) else ""
         if who not in ["user", "script", "agent"]:
             who = "user"
-
+    
     # 确定访问方式
     if by is None:
         by = determine_access_type(request)
@@ -143,10 +164,10 @@ def request2access(
     return Access(
         path=path,
         mime=mime,
-        entry=entry,
+        entry=entry or "index",  # 如果没有 entry，默认为 "index"
         who=who,
         by=by if hasattr(by, 'value') else str(by),
-        query=dict(request.query_params),
+        query=query_dict,
         cookies=dict(request.cookies)
     )
 
@@ -189,8 +210,6 @@ async def replaceByBody(pack, body_or_request):
             body_key = q_value[1:]
             if body_key in body:
                 pack.cookies[q_key] = str(body[body_key])
-    
-    # 更新 pack 的 body
-    pack.body = body
+    # pack 没有body，不要设置
     
     return pack
