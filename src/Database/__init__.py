@@ -62,14 +62,6 @@ def getmime(path):
 
 from datetime import datetime
 
-# 导入备份功能
-from .backup import (
-    save_backup,
-    load_latest_backup,
-    list_backups,
-    start_auto_backup
-)
-
 # 初始化一些基础数据
 Table.of("PUB").set("a", File(mime="text", value={
     "text": "text text", 

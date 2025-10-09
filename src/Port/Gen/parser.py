@@ -44,10 +44,15 @@ class Parser:
             # 解析所有内容
             self._parse_document()
             
-            # 如果有定义的第一个 item，使用它作为根
+            # 选择根入口：优先使用 'main'，否则使用第一个 item
             if self.items:
-                first_item_name = list(self.items.keys())[0]
-                root_gen = self.items[first_item_name]
+                # 优先查找 'main' item
+                if 'main' in self.items:
+                    root_gen = self.items['main']
+                else:
+                    # 使用第一个 item
+                    first_item_name = list(self.items.keys())[0]
+                    root_gen = self.items[first_item_name]
                 
                 # 创建一个包装器，先初始化变量，再生成
                 root = self._create_root_with_vars(root_gen)
@@ -210,8 +215,32 @@ class Parser:
             
             # 只处理直接子项
             if indent == base_indent:
-                # 解析这一行
-                child = self._parse_line_content(stripped)
+                # 检查是否需要多行合并
+                merged_line = stripped
+                line_idx = self.current_line
+                
+                # 如果行尾有 \，则与下一行合并
+                while merged_line.endswith('\\'):
+                    merged_line = merged_line[:-1]  # 移除末尾的 \
+                    line_idx += 1
+                    if line_idx < len(self.lines):
+                        next_line = self.lines[line_idx].strip()
+                        # 跳过空行和注释
+                        while next_line == '' or next_line.startswith('//'):
+                            line_idx += 1
+                            if line_idx >= len(self.lines):
+                                break
+                            next_line = self.lines[line_idx].strip()
+                        if line_idx < len(self.lines) and self._get_indent(self.lines[line_idx]) == base_indent:
+                            merged_line += next_line
+                            self.current_line = line_idx
+                        else:
+                            break
+                    else:
+                        break
+                
+                # 解析合并后的行
+                child = self._parse_line_content(merged_line)
                 children.append(child)
             
             self.current_line += 1
@@ -220,8 +249,8 @@ class Parser:
         if children:
             self.items[item_name] = Generator("Roulette", children)
         else:
-            # 没有子项，item 名本身就是内容
-            self.items[item_name] = item_name
+            # 没有子项，创建一个空的生成器
+            self.items[item_name] = Generator("PlainList", [""])
     
     def _parse_line_content(self, line):
         """解析一行的内容，支持权重、表达式、变量等"""
@@ -229,9 +258,16 @@ class Parser:
         weight = 1
         content = line
         
-        # 权重语法：:n:content 或 #[expr]:content
-        if line.startswith('#['):
-            # 动态权重
+        # 权重语法：:n:content 或 :#[expr]:content 或 #[expr]:content
+        if line.startswith(':#['):
+            # 动态权重（以冒号开头）
+            match = re.match(r'^:#\[([^\]]+)\]:(.*)$', line)
+            if match:
+                weight_expr = match.group(1)
+                content = match.group(2)
+                weight = Generator("Expression", weight_expr)
+        elif line.startswith('#['):
+            # 动态权重（直接开头）
             match = re.match(r'^#\[([^\]]+)\]:(.*)$', line)
             if match:
                 weight_expr = match.group(1)
@@ -271,10 +307,24 @@ class Parser:
             # 转义字符
             if char == '\\' and pos + 1 < len(text):
                 next_char = text[pos + 1]
+                # 特殊字符转义
                 if next_char in ['$', '#', '\\', '[', ']', '{', '}']:
                     parts.append(next_char)
                     pos += 2
-                continue
+                    continue
+                # 格式控制转义
+                elif next_char == 'n':
+                    parts.append('\n')
+                    pos += 2
+                    continue
+                elif next_char == 't':
+                    parts.append('\t')
+                    pos += 2
+                    continue
+                elif next_char == 's':
+                    parts.append(' ')
+                    pos += 2
+                    continue
             
             # 变量引用 $var
             if char == '$':
@@ -296,6 +346,14 @@ class Parser:
             
             # # 开头的特殊语法
             if char == '#':
+                # 重复生成 #*n 或 #*[expr]
+                if pos + 1 < len(text) and text[pos + 1] == '*':
+                    repeat_result = self._parse_repeat(text[pos:])
+                    if repeat_result:
+                        parts.append(repeat_result['generator'])
+                        pos += repeat_result['length']
+                        continue
+                
                 # 表达式 #[...]
                 if pos + 1 < len(text) and text[pos + 1] == '[':
                     end = self._find_matching_bracket(text, pos + 1, '[', ']')
@@ -322,7 +380,7 @@ class Parser:
                         options = self._parse_inline_options(options_str)
                         parts.append(Generator("InlineRandom", options))
                         pos = end + 1
-                continue
+                        continue
             
                 # Item 引用 #item（后面跟空格或结束）
                 item_match = re.match(r'#(\w+)', text[pos:])
@@ -330,7 +388,7 @@ class Parser:
                     item_name = item_match.group(1)
                     parts.append(Generator("ItemRef", item_name))
                     pos += len(item_match.group(0))
-                continue
+                    continue
             
             # 普通字符
             parts.append(char)
@@ -376,8 +434,15 @@ class Parser:
             weight = 1
             content = part
             
-            if part.startswith('#['):
-                # 动态权重
+            if part.startswith(':#['):
+                # 动态权重（以冒号开头）
+                match = re.match(r'^:#\[([^\]]+)\]:(.*)$', part)
+                if match:
+                    weight_expr = match.group(1)
+                    content = match.group(2).strip()
+                    weight = Generator("Expression", weight_expr)
+            elif part.startswith('#['):
+                # 动态权重（直接开头）
                 match = re.match(r'^#\[([^\]]+)\]:(.*)$', part)
                 if match:
                     weight_expr = match.group(1)
@@ -403,6 +468,85 @@ class Parser:
                 options.append(gen)
         
         return options
+    
+    def _parse_repeat(self, text):
+        """解析重复语法 #*n 或 #*[expr] 或 #*n`content`
+        
+        返回: {'generator': Generator, 'length': int} 或 None
+        """
+        # #*[expr]item 或 #*[expr]`content`
+        if text.startswith('#*['):
+            end_bracket = self._find_matching_bracket(text, 2, '[', ']')
+            if end_bracket == -1:
+                return None
+            
+            count_expr = text[3:end_bracket]
+            count_gen = Generator("Expression", count_expr)
+            rest = text[end_bracket + 1:]
+            
+            # 检查是否是 `content` 形式
+            if rest.startswith('`'):
+                end_backtick = rest.find('`', 1)
+                if end_backtick != -1:
+                    content = rest[1:end_backtick]
+                    # 检查content中是否有$i，决定use_index
+                    use_index = '$i' in content or '#i' in content
+                    content_gen = self._parse_inline_content(content)
+                    
+                    repeat_gen = Generator("Repeat", {
+                        'count': count_gen,
+                        'content': content_gen,
+                        'use_index': use_index
+                    })
+                    return {'generator': repeat_gen, 'length': end_bracket + 1 + end_backtick + 1}
+            
+            # #*[expr]item 形式
+            item_match = re.match(r'(\w+)', rest)
+            if item_match:
+                item_name = item_match.group(1)
+                content_gen = Generator("ItemRef", item_name)
+                repeat_gen = Generator("Repeat", {
+                    'count': count_gen,
+                    'content': content_gen,
+                    'use_index': False
+                })
+                return {'generator': repeat_gen, 'length': end_bracket + 1 + len(item_name)}
+        
+        # #*nitem 或 #*n`content`
+        match = re.match(r'#\*(\d+)', text)
+        if match:
+            count = int(match.group(1))
+            rest = text[len(match.group(0)):]
+            
+            # 检查是否是 `content` 形式
+            if rest.startswith('`'):
+                end_backtick = rest.find('`', 1)
+                if end_backtick != -1:
+                    content = rest[1:end_backtick]
+                    # 检查content中是否有$i或#i
+                    use_index = '$i' in content or '#i' in content
+                    content_gen = self._parse_inline_content(content)
+                    
+                    repeat_gen = Generator("Repeat", {
+                        'count': count,
+                        'content': content_gen,
+                        'use_index': use_index
+                    })
+                    return {'generator': repeat_gen, 'length': len(match.group(0)) + end_backtick + 1}
+            
+            # #*nitem 形式
+            item_match = re.match(r'(\w+)', rest)
+            if item_match:
+                item_name = item_match.group(1)
+                content_gen = Generator("ItemRef", item_name)
+                repeat_gen = Generator("Repeat", {
+                    'count': count,
+                    'content': content_gen,
+                    'use_index': False
+                })
+                return {'generator': repeat_gen, 'length': len(match.group(0)) + len(item_name)}
+        
+        return None
     
     def _find_matching_bracket(self, text, start, open_char, close_char):
         """查找匹配的括号"""

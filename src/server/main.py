@@ -1,7 +1,7 @@
 from fastapi import FastAPI,Query,Cookie,Request
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from Database import getmime, start_auto_backup
+from Database import getmime
 from Express import wrap
 import Port
 from .assets_support import scan_assets_directories, serve
@@ -14,8 +14,6 @@ app = FastAPI(title="Note Server", version="0.1.0")
 async def startup_event():
     """服务器启动时的初始化"""
     print("🚀 Note Server 正在启动...")
-    # 启动自动备份
-    start_auto_backup()
     print("✓ 所有服务已启动")
 
 

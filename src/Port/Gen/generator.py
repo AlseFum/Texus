@@ -65,6 +65,7 @@ class Generator:
     - SideEffect: 副作用 #{}
     - InlineRandom: 行内快速随机 #()
     - Conditional: 条件语句
+    - Repeat: 重复生成 #*n 或 #*[expr]
     """
     
     # 生成器类型
@@ -76,6 +77,7 @@ class Generator:
     SideEffect = "SideEffect"
     InlineRandom = "InlineRandom"
     Conditional = "Conditional"
+    Repeat = "Repeat"
     
     def __init__(self, type: str, thing: Any, weight: Union[int, 'Generator'] = 1):
         """初始化生成器
@@ -182,9 +184,28 @@ class Generator:
             return ""
         
         elif self.type == self.InlineRandom:
-            # 行内快速随机 #()
+            # 行内快速随机 #() - 支持权重
             options = self.thing
-            selected = random.choice(options)
+            weights = []
+            
+            # 计算权重
+            for option in options:
+                if isinstance(option, Generator):
+                    w = option.weight
+                    if isinstance(w, Generator):
+                        # 动态权重，需要计算
+                        w_value = w.gen(context)
+                        try:
+                            w = float(w_value)
+                        except:
+                            w = 1
+                    weights.append(w)
+                else:
+                    weights.append(1)
+            
+            # 随机选择
+            selected = random.choices(options, weights=weights, k=1)[0]
+            
             if isinstance(selected, Generator):
                 return selected.gen(context)
             return str(selected)
@@ -192,6 +213,35 @@ class Generator:
         elif self.type == self.Conditional:
             # 条件语句
             return self._eval_conditional(self.thing, context)
+        
+        elif self.type == self.Repeat:
+            # 重复生成 #*n 或 #*[expr]
+            repeat_data = self.thing
+            count = repeat_data.get('count', 1)
+            content = repeat_data.get('content')
+            use_index = repeat_data.get('use_index', False)
+            
+            # 计算重复次数
+            if isinstance(count, Generator):
+                count_str = count.gen(context)
+                try:
+                    count = int(float(count_str))
+                except:
+                    count = 1
+            
+            # 重复生成
+            results = []
+            for i in range(count):
+                if use_index:
+                    # 设置索引变量 #i（从1开始）
+                    context.set_variable('i', i + 1)
+                
+                if isinstance(content, Generator):
+                    results.append(content.gen(context))
+                else:
+                    results.append(str(content))
+            
+            return ''.join(results)
         
         return str(self.thing)
     
