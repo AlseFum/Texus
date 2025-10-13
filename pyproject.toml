@@ -9,5 +9,6 @@ authors = [{ name = "Noteserver Dev" } ]
 dependencies = [
   "fastapi>=0.115.0",
   "uvicorn[standard]>=0.30.0",
+  "toml>=0.10.2",
 
 ]

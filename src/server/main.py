@@ -20,7 +20,7 @@ async def startup_event():
         backup_dir="src/Database/.backup",  # 备份目录
         max_backups=10,                      # 保留10个备份
         backup_interval=10,                  # 每10秒备份一次
-        format="json"                        # 使用JSON格式
+        format="toml"                        # 使用TOML格式
     )
     
     print("✓ 所有服务已启动")

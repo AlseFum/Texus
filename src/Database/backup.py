@@ -204,7 +204,10 @@ class BackupManager:
                 with open(backup_path, 'w', encoding='utf-8') as f:
                     json.dump(backup_data, f, ensure_ascii=False, indent=2, cls=CustomJSONEncoder)
             elif self.format == "toml":
+                # TOML 需要先序列化为兼容格式
                 with open(backup_path, 'w', encoding='utf-8') as f:
+                    # 使用 toml 库，它会自动处理多行字符串
+                    # 长文本会自动使用 """ 多行语法
                     toml.dump(backup_data, f)
             
             print(f"备份已创建: {backup_path}")
