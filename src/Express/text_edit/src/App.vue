@@ -10,6 +10,7 @@
       <textarea
         v-model="content"
         class="note-textarea"
+        @keydown="handleKeyDown"
       ></textarea>
     </main>
 
@@ -148,6 +149,162 @@ const saveNote = async () => {
 const clearNote = () => {
   if (confirm('确定要清空文本内容吗？')) {
     content.value = ''
+  }
+}
+
+// 处理 Tab 键缩进
+const handleKeyDown = (event) => {
+  const textarea = event.target
+  const INDENT = '    ' // 4 个空格
+  
+  // Tab 键处理
+  if (event.key === 'Tab') {
+    event.preventDefault() // 阻止默认的焦点切换行为
+    
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    
+    if (event.shiftKey) {
+      // Shift+Tab: 减少缩进，确保空格数是 4 的倍数
+      if (start === end) {
+        // 没有选中文本，减少当前行的缩进
+        const lineStart = content.value.lastIndexOf('\n', start - 1) + 1
+        const lineEnd = content.value.indexOf('\n', start)
+        const fullLine = content.value.substring(lineStart, lineEnd === -1 ? content.value.length : lineEnd)
+        
+        // 计算行首的空格数
+        const leadingSpaces = fullLine.match(/^[ \t]*/)[0]
+        let spaceCount = 0
+        for (const char of leadingSpaces) {
+          spaceCount += char === '\t' ? 4 : 1
+        }
+        
+        if (spaceCount > 0) {
+          // 减少到下一个 4 的倍数
+          const newSpaceCount = Math.max(0, Math.floor((spaceCount - 1) / 4) * 4)
+          const newIndent = ' '.repeat(newSpaceCount)
+          const lineContent = fullLine.substring(leadingSpaces.length)
+          
+          const beforeLine = content.value.substring(0, lineStart)
+          const afterLine = content.value.substring(lineEnd === -1 ? content.value.length : lineEnd)
+          
+          content.value = beforeLine + newIndent + lineContent + afterLine
+          
+          // 更新光标位置
+          const cursorOffset = start - lineStart - leadingSpaces.length
+          setTimeout(() => {
+            textarea.selectionStart = textarea.selectionEnd = lineStart + newSpaceCount + Math.max(0, cursorOffset)
+          }, 0)
+        }
+      } else {
+        // 有选中文本，减少所有选中行的缩进
+        const beforeSelection = content.value.substring(0, start)
+        const afterSelection = content.value.substring(end)
+        
+        // 找到选中区域的起始行
+        const selectionStart = beforeSelection.lastIndexOf('\n') + 1
+        const selectionEnd = end
+        
+        // 获取选中区域的文本
+        const textToProcess = content.value.substring(selectionStart, selectionEnd)
+        
+        // 对每一行减少缩进
+        const lines = textToProcess.split('\n')
+        const processedLines = lines.map(line => {
+          const leadingSpaces = line.match(/^[ \t]*/)[0]
+          let spaceCount = 0
+          for (const char of leadingSpaces) {
+            spaceCount += char === '\t' ? 4 : 1
+          }
+          
+          if (spaceCount > 0) {
+            const newSpaceCount = Math.max(0, Math.floor((spaceCount - 1) / 4) * 4)
+            const newIndent = ' '.repeat(newSpaceCount)
+            return newIndent + line.substring(leadingSpaces.length)
+          }
+          return line
+        })
+        
+        const newText = processedLines.join('\n')
+        const lengthDiff = textToProcess.length - newText.length
+        
+        content.value = content.value.substring(0, selectionStart) + newText + afterSelection
+        
+        // 更新选择区域
+        setTimeout(() => {
+          textarea.selectionStart = Math.max(selectionStart, start - Math.min(4, lengthDiff))
+          textarea.selectionEnd = end - lengthDiff
+        }, 0)
+      }
+    } else {
+      // Tab: 增加缩进，对齐到 4 的倍数
+      if (start === end) {
+        // 没有选中文本，对齐到下一个 4 的倍数
+        const lineStart = content.value.lastIndexOf('\n', start - 1) + 1
+        const lineEnd = content.value.indexOf('\n', start)
+        const fullLine = content.value.substring(lineStart, lineEnd === -1 ? content.value.length : lineEnd)
+        
+        // 计算行首的空格数
+        const leadingSpaces = fullLine.match(/^[ \t]*/)[0]
+        let spaceCount = 0
+        for (const char of leadingSpaces) {
+          spaceCount += char === '\t' ? 4 : 1
+        }
+        
+        // 增加到下一个 4 的倍数
+        const newSpaceCount = Math.ceil((spaceCount + 1) / 4) * 4
+        const newIndent = ' '.repeat(newSpaceCount)
+        const lineContent = fullLine.substring(leadingSpaces.length)
+        
+        const beforeLine = content.value.substring(0, lineStart)
+        const afterLine = content.value.substring(lineEnd === -1 ? content.value.length : lineEnd)
+        
+        content.value = beforeLine + newIndent + lineContent + afterLine
+        
+        // 更新光标位置
+        const cursorOffset = start - lineStart - leadingSpaces.length
+        setTimeout(() => {
+          textarea.selectionStart = textarea.selectionEnd = lineStart + newSpaceCount + Math.max(0, cursorOffset)
+        }, 0)
+      } else {
+        // 有选中文本，为所有选中行增加缩进到 4 的倍数
+        const beforeSelection = content.value.substring(0, start)
+        const afterSelection = content.value.substring(end)
+        
+        // 找到选中区域的起始行
+        const selectionStart = beforeSelection.lastIndexOf('\n') + 1
+        const selectionEnd = end
+        
+        // 获取选中区域的文本
+        const textToProcess = content.value.substring(selectionStart, selectionEnd)
+        
+        // 对每一行增加缩进
+        const lines = textToProcess.split('\n')
+        const processedLines = lines.map(line => {
+          const leadingSpaces = line.match(/^[ \t]*/)[0]
+          let spaceCount = 0
+          for (const char of leadingSpaces) {
+            spaceCount += char === '\t' ? 4 : 1
+          }
+          
+          // 增加到下一个 4 的倍数
+          const newSpaceCount = Math.ceil((spaceCount + 1) / 4) * 4
+          const newIndent = ' '.repeat(newSpaceCount)
+          return newIndent + line.substring(leadingSpaces.length)
+        })
+        
+        const newText = processedLines.join('\n')
+        const lengthDiff = newText.length - textToProcess.length
+        
+        content.value = content.value.substring(0, selectionStart) + newText + afterSelection
+        
+        // 更新选择区域
+        setTimeout(() => {
+          textarea.selectionStart = start + (start === selectionStart ? 4 : 0)
+          textarea.selectionEnd = end + lengthDiff
+        }, 0)
+      }
+    }
   }
 }
 
