@@ -1,6 +1,6 @@
 from .generator import Generator, Context
 from .file import GenFile
-from protocol.types import File
+from protocol.types import entry
 from datetime import datetime
 import re
 
@@ -27,7 +27,7 @@ class Parser:
         """初始化解析器
         
         Args:
-            source_file: File 对象，包含模板文本和元数据
+            source_file: entry 对象，包含模板文本和元数据
         """
         self.source_file = source_file
         self.text = source_file._value.get("text", "")

@@ -4,7 +4,7 @@
 可以通过调用 load_test_cases() 来加载所有测试用例到数据库。
 """
 
-from protocol.types import File
+from protocol.types import entry
 from datetime import datetime
 
 
@@ -12,12 +12,12 @@ def load_test_cases(pub_table):
     """加载所有测试用例到 PUB 表"""
     
     # 旧语法测试（向后兼容）
-    pub_table.set("test_gen", File(mime="gen", value={
+    pub_table.set("test_gen", entry(mime="gen", value={
         "text": "你好[世界|朋友|同志]！今天天气[真|很|超级]{好|不错|棒}呢。",
         "lastSavedTime": datetime.now()
     }))
     
-    pub_table.set("greeting", File(mime="gen", value={
+    pub_table.set("greeting", entry(mime="gen", value={
         "text": "{早上|中午|晚上}好啊，[很|非常|特别][开心|高兴|愉快]见到你！",
         "lastSavedTime": datetime.now()
     }))
@@ -25,7 +25,7 @@ def load_test_cases(pub_table):
     # 新语法测试用例
     
     # 测试1: 基础缩进结构 + 权重
-    pub_table.set("test_weight", File(mime="gen", value={
+    pub_table.set("test_weight", entry(mime="gen", value={
         "text": """greeting
     你好
     :2:早安
@@ -35,7 +35,7 @@ def load_test_cases(pub_table):
     }))
     
     # 测试2: 变量声明和使用
-    pub_table.set("test_variable", File(mime="gen", value={
+    pub_table.set("test_variable", entry(mime="gen", value={
         "text": """$name = "艾莉丝"
 $age : num
 main
@@ -45,7 +45,7 @@ main
     }))
     
     # 测试3: 表达式计算 #[]
-    pub_table.set("test_expression", File(mime="gen", value={
+    pub_table.set("test_expression", entry(mime="gen", value={
         "text": """$x : num
 $y : num
 calc
@@ -57,7 +57,7 @@ calc
     }))
     
     # 测试4: 副作用 #{} 和简写运算符
-    pub_table.set("test_side_effect", File(mime="gen", value={
+    pub_table.set("test_side_effect", entry(mime="gen", value={
         "text": """$count : num
 counter
     开始计数: $count
@@ -69,7 +69,7 @@ counter
     }))
     
     # 测试5: 行内快速随机 #()
-    pub_table.set("test_inline", File(mime="gen", value={
+    pub_table.set("test_inline", entry(mime="gen", value={
         "text": """story
     英雄#(勇敢地|小心翼翼地|快速地)走进了森林。
     #(他|她)看到了一只#(老虎|狮子|熊)。
@@ -78,7 +78,7 @@ counter
     }))
     
     # 测试6: Item 引用
-    pub_table.set("test_item_ref", File(mime="gen", value={
+    pub_table.set("test_item_ref", entry(mime="gen", value={
         "text": """name
     艾莉丝
     鲍勃
@@ -97,7 +97,7 @@ character
     }))
     
     # 测试7: 动态权重
-    pub_table.set("test_dynamic_weight", File(mime="gen", value={
+    pub_table.set("test_dynamic_weight", entry(mime="gen", value={
         "text": """$mood : num
 greeting
     #{$mood = 5}
@@ -108,7 +108,7 @@ greeting
     }))
     
     # 测试8: 条件语句（三元运算符）
-    pub_table.set("test_conditional", File(mime="gen", value={
+    pub_table.set("test_conditional", entry(mime="gen", value={
         "text": """$score : num
 result
     #{$score = 85}
@@ -119,7 +119,7 @@ result
     }))
     
     # 测试9: 复杂示例 - 角色生成器
-    pub_table.set("test_character", File(mime="gen", value={
+    pub_table.set("test_character", entry(mime="gen", value={
         "text": """// 角色生成器
 $hp : num
 $name = #names
@@ -131,7 +131,7 @@ dice
     3
     :2:4
     :2:5
-    6
+    
 
 names
     艾莉丝
@@ -161,7 +161,7 @@ story
     }))
     
     # 测试10: 多重引用与一致性
-    pub_table.set("test_consistency", File(mime="gen", value={
+    pub_table.set("test_consistency", entry(mime="gen", value={
         "text": """name
     Alice
     Bob
@@ -180,7 +180,7 @@ same
     }))
     
     # 测试11: 递归和副作用组合
-    pub_table.set("test_recursive", File(mime="gen", value={
+    pub_table.set("test_recursive", entry(mime="gen", value={
         "text": """$step : num
 
 action
@@ -197,7 +197,7 @@ sequence
     }))
     
     # 测试12: 空值和可选内容
-    pub_table.set("test_optional", File(mime="gen", value={
+    pub_table.set("test_optional", entry(mime="gen", value={
         "text": """optional
     有内容
     
@@ -210,7 +210,7 @@ main
     }))
     
     # 测试13: 格式控制转义序列
-    pub_table.set("test_escape", File(mime="gen", value={
+    pub_table.set("test_escape", entry(mime="gen", value={
         "text": r"""poem
     第一行\n第二行\n\t缩进的第三行
     
@@ -225,7 +225,7 @@ spacing
     }))
     
     # 测试14: 重复生成功能
-    pub_table.set("test_repeat", File(mime="gen", value={
+    pub_table.set("test_repeat", entry(mime="gen", value={
         "text": """name
     Alice
     Bob
@@ -249,7 +249,7 @@ numbered
     }))
     
     # 测试15: 综合测试 - 使用到条件语句前的所有功能
-    pub_table.set("test_ultimate", File(mime="gen", value={
+    pub_table.set("test_ultimate", entry(mime="gen", value={
         "text": r"""// 综合测试 - 使用所有已实现功能
 // ========================================
 

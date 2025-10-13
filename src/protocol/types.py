@@ -50,7 +50,35 @@ class FinalVis(Renderee):
     """Port模块的视觉内容实现"""
     pass  # 继承父类的所有功能
 
-class File(Renderee):
+class entry(Renderee):
     """文件对象实现"""
     #
     lastModifiedTime = None
+    
+    def to_dict(self):
+        """将 entry 对象转换为字典"""
+        return {
+            "mime": self._mime,
+            "value": self._value,
+            "skip": self._skip,
+            "lastModifiedTime": self.lastModifiedTime
+        }
+    
+    @classmethod
+    def from_dict(cls, data):
+        """从字典创建 entry 对象"""
+        if not isinstance(data, dict):
+            raise ValueError("数据必须是字典格式")
+        
+        # 创建新实例
+        instance = cls(
+            mime=data.get("mime", ""),
+            value=data.get("value", None),
+            skip=data.get("skip", False)
+        )
+        
+        # 设置 lastModifiedTime
+        if "lastModifiedTime" in data:
+            instance.lastModifiedTime = data["lastModifiedTime"]
+        
+        return instance

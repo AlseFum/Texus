@@ -1,33 +1,33 @@
 from util import first_valid
 from Database import pub_get, pub_set
-from protocol.types import FinalVis, File
+from protocol.types import FinalVis, entry
 from datetime import datetime
 
 
 class Text:
     @staticmethod
     def get_data(entry):
-        """从数据库获取文本数据，返回File对象"""
+        """从数据库获取文本数据，返回entry对象"""
         # 直接从pub表获取数据
         pub_data = pub_get(entry)
         if pub_data is None:
-        # 如果没有数据，返回空的File
-          return File(mime="text", value={"text": "No data", "lastSavedTime": None})
+        # 如果没有数据，返回空的entry
+          return entry(mime="text", value={"text": "No data", "lastSavedTime": None})
         if pub_data is not None:
-            # 将pub数据转换为File对象
-            if isinstance(pub_data, File):
+            # 将pub数据转换为entry对象
+            if isinstance(pub_data, entry):
                 return pub_data
             elif isinstance(pub_data, dict):
                 # 如果已经是正确格式的字典
-                right_format = File(mime="text", value={
+                right_format = entry(mime="text", value={
                     "text": pub_data.get("text", ""),
                     "lastSavedTime": pub_data.get("lastSavedTime", datetime.now())
                 })
                 pub_set(entry, right_format)
                 return right_format
             else:
-                # 如果是原始字符串数据，转换为File对象
-                right_format = File(mime="text", value={
+                # 如果是原始字符串数据，转换为entry对象
+                right_format = entry(mime="text", value={
                     "text": str(pub_data),
                     "lastSavedTime": datetime.now()
                 })
@@ -63,13 +63,13 @@ class Text:
         except:
             pass  # 如果解码失败，使用原始内容
         
-        # 创建File对象，保存datetime对象
+        # 创建entry对象，保存datetime对象
         saved_time = datetime.now()
         file_data = {
             "text": content,
             "lastSavedTime": saved_time
         }
-        text_file = File(mime="text", value=file_data)
+        text_file = entry(mime="text", value=file_data)
         
         # 直接保存到pub表
         pub_set(pack.entry, text_file._value)

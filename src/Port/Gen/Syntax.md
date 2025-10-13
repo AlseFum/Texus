@@ -25,6 +25,7 @@ item with white space
 ``` 必须引号
 "#devil may cry"
 ```
+未来可能更加严格
 ### 多行合一
 使用`\`表示转行而非新项
 ```

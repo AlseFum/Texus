@@ -1,10 +1,11 @@
-from protocol.types import File
+from protocol.types import entry
 tables={}
 
 class Table:
     def __init__(self, string):
         self.inner = {}
         self.name = string
+        self._sync_required = False  # 标记是否需要备份
         tables[string] = self
     
     @staticmethod
@@ -13,20 +14,50 @@ class Table:
             return tables[string]
         else:
             return Table(string)
+    
     def get(self, key, otherwise=None):
         return self.inner.get(key, otherwise)
     
     def set(self, key, value):
         self.inner[key] = value
+        # 当数据发生变化时，标记需要备份
+        self._sync_required = True
     
     def __getitem__(self, key):
         return self.get(key, None)
     
     def __setitem__(self, key, value):
         self.set(key, value)
+    
+    def sync(self):
+        """标记此表需要被备份"""
+        self._sync_required = True
+        return self
+    
+    def is_sync_required(self):
+        """检查此表是否需要备份"""
+        return self._sync_required
+    
+    def mark_synced(self):
+        """标记此表已经备份完成"""
+        self._sync_required = False
+    
+    def get_all_data(self):
+        """获取表的所有数据，用于备份"""
+        return {
+            "name": self.name,
+            "data": self.inner.copy(),
+            "sync_required": self._sync_required
+        }
+    
     @staticmethod
     def table_names():
         return list(tables.keys())
+    
+    @staticmethod
+    def get_tables_need_sync():
+        """获取所有需要备份的表"""
+        return [table for table in tables.values() if table._sync_required]
 def pub_get(entry):
     """获取公共条目"""
     pub_table = Table.of("PUB")
@@ -63,7 +94,7 @@ def getmime(path):
 from datetime import datetime
 
 # 初始化一些基础数据
-Table.of("PUB").set("a", File(mime="text", value={
+Table.of("PUB").set("a", entry(mime="text", value={
     "text": "text text", 
     "lastSavedTime": datetime.now()
 }))

@@ -1,4 +1,4 @@
-from protocol.types import FinalVis, File
+from protocol.types import FinalVis, entry
 from Database import Table, pub_get, pub_set
 from util import first_valid
 from datetime import datetime
@@ -34,13 +34,13 @@ class Gen:
         if pub_data is None:
             return FinalVis.of("raw", "(empty)")
         
-        # 统一转换为 File 格式
-        if isinstance(pub_data, File):
+        # 统一转换为 entry 格式
+        if isinstance(pub_data, entry):
             pub_file = pub_data
         elif isinstance(pub_data, dict):
-            pub_file = File(mime="text", value=pub_data)
+            pub_file = entry(mime="text", value=pub_data)
         else:
-            pub_file = File(mime="text", value={"text": str(pub_data)})
+            pub_file = entry(mime="text", value={"text": str(pub_data)})
         
         pub_timestamp = pub_file._value.get("lastSavedTime")
         
