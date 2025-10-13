@@ -6,10 +6,10 @@ from datetime import datetime
 
 class Text:
     @staticmethod
-    def get_data(entry):
+    def get_data(entry_key):
         """从数据库获取文本数据，返回entry对象"""
         # 直接从pub表获取数据
-        pub_data = pub_get(entry)
+        pub_data = pub_get(entry_key)
         if pub_data is None:
         # 如果没有数据，返回空的entry
           return entry(mime="text", value={"text": "No data", "lastSavedTime": None})
@@ -23,7 +23,7 @@ class Text:
                     "text": pub_data.get("text", ""),
                     "lastSavedTime": pub_data.get("lastSavedTime", datetime.now())
                 })
-                pub_set(entry, right_format)
+                pub_set(entry_key, right_format)
                 return right_format
             else:
                 # 如果是原始字符串数据，转换为entry对象
@@ -31,7 +31,7 @@ class Text:
                     "text": str(pub_data),
                     "lastSavedTime": datetime.now()
                 })
-                pub_set(entry, right_format._value)
+                pub_set(entry_key, right_format._value)
                 return right_format
         
     @staticmethod

@@ -1,7 +1,7 @@
 from fastapi import FastAPI,Query,Cookie,Request
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from Database import getmime
+from Database import getmime, init_backup_system, stop_backup_system
 from Express import wrap
 import Port
 from .assets_support import scan_assets_directories, serve
@@ -14,7 +14,27 @@ app = FastAPI(title="Note Server", version="0.1.0")
 async def startup_event():
     """服务器启动时的初始化"""
     print("🚀 Note Server 正在启动...")
+    
+    # 初始化备份系统
+    init_backup_system(
+        backup_dir="src/Database/.backup",  # 备份目录
+        max_backups=10,                      # 保留10个备份
+        backup_interval=10,                  # 每10秒备份一次
+        format="json"                        # 使用JSON格式
+    )
+    
     print("✓ 所有服务已启动")
+
+# 关闭事件
+@app.on_event("shutdown")
+async def shutdown_event():
+    """服务器关闭时的清理"""
+    print("🛑 Note Server 正在关闭...")
+    
+    # 停止备份系统
+    stop_backup_system()
+    
+    print("✓ 所有服务已停止")
 
 
 

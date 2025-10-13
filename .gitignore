@@ -5,3 +5,7 @@ __pycache__/
 .env
 .DS_Store
 
+# 备份文件
+.backup/
+src/Database/.backup/
+
