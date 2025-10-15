@@ -1,5 +1,6 @@
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
-from fastapi import Request
+from fastapi import Request, FastAPI, Query, Cookie
+from fastapi.middleware.cors import CORSMiddleware
 def first_valid(*args):
     for arg in args:
         if arg is not None:

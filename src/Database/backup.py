@@ -32,11 +32,16 @@ class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
         # 处理 entry 对象
         if isinstance(obj, entry):
-            return obj.to_dict()
+            result = obj.to_dict()
+            result["__type__"] = "entry"
+            return result
         
         # 处理 datetime 对象
         if isinstance(obj, datetime):
-            return obj.isoformat()
+            return {
+                "__type__": "datetime",
+                "value": obj.isoformat()
+            }
         
         # 其他对象使用默认处理
         return super().default(obj)
@@ -45,10 +50,15 @@ class CustomJSONEncoder(json.JSONEncoder):
 def serialize_value(value):
     """递归序列化值，将 entry 对象转换为字典"""
     if isinstance(value, entry):
-        # 使用 entry 的 to_dict 方法
-        return value.to_dict()
+        # 使用 entry 的 to_dict 方法，并添加类型标记
+        result = value.to_dict()
+        result["__type__"] = "entry"  # 添加类型标记便于反序列化
+        return result
     elif isinstance(value, datetime):
-        return value.isoformat()
+        return {
+            "__type__": "datetime",
+            "value": value.isoformat()
+        }
     elif isinstance(value, dict):
         return {k: serialize_value(v) for k, v in value.items()}
     elif isinstance(value, (list, tuple)):
@@ -60,16 +70,33 @@ def serialize_value(value):
 def deserialize_value(value):
     """递归反序列化值，将字典转换回 entry 对象"""
     if isinstance(value, dict):
-        # 检查是否是 entry 对象的序列化形式
-        if "mime" in value and "value" in value and "skip" in value:
+        # 检查类型标记
+        if value.get("__type__") == "entry":
+            try:
+                # 移除类型标记后转换为 entry 对象
+                entry_data = {k: v for k, v in value.items() if k != "__type__"}
+                return entry.from_dict(entry_data)
+            except Exception as e:
+                print(f"Warning: Failed to deserialize entry object: {e}")
+                return entry_data
+        elif value.get("__type__") == "datetime":
+            try:
+                from datetime import datetime
+                return datetime.fromisoformat(value["value"])
+            except Exception as e:
+                print(f"Warning: Failed to deserialize datetime: {e}")
+                return value["value"]
+        # 向后兼容：检查是否是旧格式的 entry 对象
+        elif "mime" in value and "value" in value and "skip" in value and "__type__" not in value:
             try:
                 return entry.from_dict(value)
-            except:
-                # 如果转换失败，返回原始字典
-                pass
-        
-        # 递归处理嵌套字典
-        return {k: deserialize_value(v) for k, v in value.items()}
+            except Exception as e:
+                print(f"Warning: Failed to deserialize legacy entry object: {e}")
+                # 递归处理嵌套字典
+                return {k: deserialize_value(v) for k, v in value.items()}
+        else:
+            # 递归处理嵌套字典
+            return {k: deserialize_value(v) for k, v in value.items()}
     elif isinstance(value, list):
         return [deserialize_value(item) for item in value]
     else:

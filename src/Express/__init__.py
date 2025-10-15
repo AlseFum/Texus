@@ -14,12 +14,12 @@ def useNote(v):
     return HTMLResponse(content=html.replace("/*!insert*/", js_assignment))
 
 def extract_str(v):
-    # 优先使用 to_raw 方法，其次 content 方法
+    # 优先使用 to_raw 方法，其次 value 属性
     if v is not None:
         if hasattr(v, "to_raw") and callable(getattr(v, "to_raw")):
             return str(v.to_raw())
-        if hasattr(v, "content") and callable(getattr(v, "content")):
-            return str(v.content())
+        if hasattr(v, "value"):
+            return str(v.value)
     return ""
 def get_template(where:str):
   html=""
@@ -69,6 +69,6 @@ mimes["note"]=useNote
 mimes["text"]=useNote
 mimes["raw"]=useRaw
 def wrap(v: Renderee):
-    if v.mime() in mimes:
-        return mimes[v.mime()](v)
+    if v.mime in mimes:
+        return mimes[v.mime](v)
     return useRaw(v)

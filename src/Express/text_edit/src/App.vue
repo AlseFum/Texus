@@ -18,10 +18,17 @@
     <footer class="note-footer">
       <div class="footer-left">
         <span class="word-count">{{ wordCount }} 字符</span>
+        <span v-if="saveStatus" class="save-status" :class="{ 
+          'saving': isSaving, 
+          'success': saveStatus === '保存成功', 
+          'error': saveStatus === '保存失败' 
+        }">
+          {{ saveStatus }}
+        </span>
       </div>
       <div class="footer-right">
-        <button @click="saveNote" class="btn btn-primary">
-          保存
+        <button @click="saveNote" class="btn btn-primary" :disabled="isSaving">
+          {{ isSaving ? '保存中...' : '保存 (Ctrl+S)' }}
         </button>
         <button @click="clearNote" class="btn btn-secondary">
           清空
@@ -32,10 +39,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 // 响应式数据
 const content = ref(inlineContent)
+const isSaving = ref(false)
+const saveStatus = ref('')
 
 // 检查是否需要从服务器请求数据
 const useRequest = typeof window !== 'undefined' && window.inlineContent === undefined
@@ -113,11 +122,16 @@ const loadNote = async () => {
 }
 
 const saveNote = async () => {
+  if (isSaving.value) return // 防止重复保存
+  
   try {
+    isSaving.value = true
+    saveStatus.value = '保存中...'
+    
     const fileId = getCurrentNoteId()
     const encodedContent = encodeURIComponent(content.value)
     
-    const response = await fetch(`/api/${fileId}?op=set&content=不是${encodedContent}`, {
+    const response = await fetch(`/api/${fileId}?op=set&content=${encodedContent}`, {
       method: 'GET', // 后端使用GET方法处理set操作
       headers: {
         'Content-Type': 'application/json',
@@ -134,15 +148,26 @@ const saveNote = async () => {
     
     if (result.success) {
       console.log('保存成功，时间:', result.data.lastSaveTime)
-      // 保存成功的反馈
+      saveStatus.value = '保存成功'
+      // 3秒后清除状态
+      setTimeout(() => {
+        saveStatus.value = ''
+      }, 3000)
     } else {
       console.error('保存失败:', result.message)
-      // 保存失败的反馈
-      alert(`保存失败: ${result.message}`)
+      saveStatus.value = '保存失败'
+      setTimeout(() => {
+        saveStatus.value = ''
+      }, 3000)
     }
   } catch (error) {
     console.error('保存文本文件失败:', error)
-    alert('保存失败，请检查网络连接')
+    saveStatus.value = '保存失败'
+    setTimeout(() => {
+      saveStatus.value = ''
+    }, 3000)
+  } finally {
+    isSaving.value = false
   }
 }
 
@@ -152,10 +177,17 @@ const clearNote = () => {
   }
 }
 
-// 处理 Tab 键缩进
+// 处理键盘快捷键
 const handleKeyDown = (event) => {
   const textarea = event.target
   const INDENT = '    ' // 4 个空格
+  
+  // Ctrl+S 保存
+  if (event.ctrlKey && event.key === 's') {
+    event.preventDefault()
+    saveNote()
+    return
+  }
   
   // Tab 键处理
   if (event.key === 'Tab') {
@@ -308,11 +340,71 @@ const handleKeyDown = (event) => {
   }
 }
 
+// 全局键盘事件处理
+const handleGlobalKeyDown = (event) => {
+  // Ctrl+S 保存
+  if (event.ctrlKey && event.key === 's') {
+    event.preventDefault()
+    saveNote()
+  }
+}
+
 // 生命周期
 onMounted(() => {
   // 只有当useRequest为true时才从服务器加载note
   if (useRequest) {
     loadNote()
   }
+  
+  // 添加全局键盘事件监听
+  document.addEventListener('keydown', handleGlobalKeyDown)
+})
+
+// 清理事件监听器
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleGlobalKeyDown)
 })
 </script>
+
+<style scoped>
+.save-status {
+  margin-left: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.save-status.saving {
+  background-color: #e3f2fd;
+  color: #1976d2;
+  animation: pulse 1.5s infinite;
+}
+
+.save-status.success {
+  background-color: #e8f5e8;
+  color: #2e7d32;
+}
+
+.save-status.error {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.footer-left {
+  display: flex;
+  align-items: center;
+}
+</style>

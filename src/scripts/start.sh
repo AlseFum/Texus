@@ -69,17 +69,4 @@ if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
     fi
 fi
 
-# 创建日志目录
-if [ ! -d "logs" ]; then
-    mkdir -p logs
-    echo -e "${GREEN}✓ 创建日志目录${NC}"
-fi
-
-# 启动服务器
-echo -e "${GREEN}=== 启动服务器 ===${NC}"
-echo -e "${YELLOW}访问地址: http://localhost:$PORT${NC}"
-echo -e "${YELLOW}健康检查: http://localhost:$PORT/health${NC}"
-echo -e "${YELLOW}按 Ctrl+C 停止服务器${NC}"
-echo ""
-
 uv run uvicorn --app-dir src server.main:app --reload --host 0.0.0.0 --port $PORT

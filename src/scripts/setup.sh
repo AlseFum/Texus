@@ -35,10 +35,6 @@ fi
 echo -e "${YELLOW}同步依赖...${NC}"
 uv sync
 
-# 创建必要的目录
-mkdir -p logs
-mkdir -p data
-
 echo -e "${GREEN}=== 初始化完成 ===${NC}"
 echo -e "运行 ${YELLOW}bash src/scripts/start.sh${NC} 启动服务器"
 

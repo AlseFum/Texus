@@ -3,7 +3,7 @@ from protocol.types import Access
 from Database import getmime
 
 
-def determine_access_type(request: Request):
+def detect_by(request: Request):
     """通过 query 参数、User-Agent 和其他请求头判断访问类型"""
     
     # 优先检查 query 参数
@@ -90,6 +90,104 @@ def determine_access_type(request: Request):
             return Access.API
         else:
             return Access.API
+
+
+def detect_who(request: Request):
+    """通过 query 参数、User-Agent 和其他请求头判断访问者类型"""
+    
+    # 优先检查 query 参数中的 role
+    role_param = request.query_params.get("role", "").lower()
+    
+    # 如果 query 中明确指定了 role 参数，优先使用
+    if role_param in ["user", "script", "agent"]:
+        return role_param
+    
+    # 如果没有明确指定，则根据 User-Agent 等判断
+    user_agent = request.headers.get("user-agent", "").lower()
+    content_type = request.headers.get("content-type", "").lower()
+    accept = request.headers.get("accept", "").lower()
+    
+    # Script 请求的特征
+    script_indicators = [
+        # 命令行工具和脚本
+        "curl/" in user_agent,
+        "wget/" in user_agent,
+        "httpie/" in user_agent,
+        "python-requests/" in user_agent,
+        "python-urllib/" in user_agent,
+        
+        # Shell 和命令行工具
+        "powershell/" in user_agent,
+        "windowspowershell/" in user_agent,
+        "pwsh/" in user_agent,
+        "bash/" in user_agent,
+        "zsh/" in user_agent,
+        
+        # 编程语言相关的 HTTP 客户端
+        "go-http-client/" in user_agent,
+        "java/" in user_agent and "http" in user_agent,
+        "ruby" in user_agent and "http" in user_agent,
+        
+        # 无 User-Agent（通常是脚本请求）
+        user_agent == "",
+        
+        # 明确的脚本标识
+        "script" in user_agent,
+        "automation" in user_agent,
+    ]
+    
+    # Agent 请求的特征
+    agent_indicators = [
+        # 开发工具和 API 测试工具
+        "postman" in user_agent,
+        "insomnia" in user_agent,
+        "axios/" in user_agent,
+        "fetch/" in user_agent,
+        
+        # 移动端 API 请求
+        "okhttp/" in user_agent,
+        "alamofire/" in user_agent,
+        
+        # 明确的 agent 标识
+        "agent" in user_agent,
+        "bot" in user_agent and "browser" not in user_agent,
+        "api" in user_agent,
+        
+        # 特定的内容类型表明是程序化访问
+        "application/json" in content_type,
+        "application/json" in accept and "text/html" not in accept,
+    ]
+    
+    # User 请求的特征（真实用户浏览器）
+    user_indicators = [
+        # 真正的浏览器通常同时包含多个标识
+        "mozilla/" in user_agent and ("chrome/" in user_agent or "firefox/" in user_agent or "safari/" in user_agent or "edge/" in user_agent),
+        "chrome/" in user_agent and "safari/" in user_agent,  # Chrome 包含 Safari 标识
+        "firefox/" in user_agent and "gecko/" in user_agent,  # Firefox 包含 Gecko
+        "safari/" in user_agent and "version/" in user_agent and "webkit/" in user_agent,  # Safari 特征
+        "edge/" in user_agent and ("chrome/" in user_agent or "webkit/" in user_agent),  # Edge 特征
+        "opera/" in user_agent,
+        
+        # Accept 头明确要求 HTML（用户浏览器的典型行为）
+        "text/html" in accept and "application/xhtml+xml" in accept,
+        "text/html,application/xhtml+xml" in accept,
+    ]
+    
+    # 判断逻辑：按优先级判断
+    if any(user_indicators):
+        return "user"
+    elif any(agent_indicators):
+        return "agent"
+    elif any(script_indicators):
+        return "script"
+    else:
+        # 默认情况，根据内容类型判断
+        if "json" in accept or "json" in content_type:
+            return "agent"
+        else:
+            return "user"
+
+
 def request2access(
     request: Request,
     path: str | None = None,
@@ -99,7 +197,7 @@ def request2access(
     by: str | None = None,
 ) -> Access:
     """将HTTP请求转换为访问对象
-    
+
     Args:
         request: HTTP请求对象
         path: 可选，指定路径字符串（默认从request.url.path获取）
@@ -153,13 +251,11 @@ def request2access(
     
     # 确定访问者类型
     if who is None:
-        who = query_dict.get("role", "").lower() if isinstance(query_dict.get("role"), str) else ""
-        if who not in ["user", "script", "agent"]:
-            who = "user"
+        who = detect_who(request)
     
     # 确定访问方式
     if by is None:
-        by = determine_access_type(request)
+        by = detect_by(request)
     
     return Access(
         path=path,

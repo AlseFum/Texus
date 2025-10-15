@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import Dict
 
 class Access:
@@ -19,6 +18,11 @@ class Access:
     Script = "script"
     Agent = "agent"
     API = "api"
+    @staticmethod
+    def of(who: str, by: str, path: str, 
+                 query: Dict[str,str], cookies: Dict[str,str], mime: str = "", 
+                 entry: str = ""):
+        return Access(who, by, path, query, cookies, mime, entry)
 
 
 class Renderee():
@@ -29,14 +33,17 @@ class Renderee():
         self._value = value
         self._skip = skip
     
-    def content(self):
+    @property
+    def value(self):
         """获取渲染内容"""
         return self._value
     
+    @property
     def mime(self):
         """获取页面类型"""
         return self._mime
     
+    @property
     def skip(self):
         """是否应该跳过渲染"""
         return self._skip

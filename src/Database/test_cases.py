@@ -11,19 +11,7 @@ from datetime import datetime
 def load_test_cases(pub_table):
     """加载所有测试用例到 PUB 表"""
     
-    # 旧语法测试（向后兼容）
-    pub_table.set("test_gen", entry(mime="gen", value={
-        "text": "你好[世界|朋友|同志]！今天天气[真|很|超级]{好|不错|棒}呢。",
-        "lastSavedTime": datetime.now()
-    }))
-    
-    pub_table.set("greeting", entry(mime="gen", value={
-        "text": "{早上|中午|晚上}好啊，[很|非常|特别][开心|高兴|愉快]见到你！",
-        "lastSavedTime": datetime.now()
-    }))
-    
     # 新语法测试用例
-    
     # 测试1: 基础缩进结构 + 权重
     pub_table.set("test_weight", entry(mime="gen", value={
         "text": """greeting
@@ -37,7 +25,7 @@ def load_test_cases(pub_table):
     # 测试2: 变量声明和使用
     pub_table.set("test_variable", entry(mime="gen", value={
         "text": """$name = "艾莉丝"
-$age : num
+$age : num = 12
 main
     我的名字是$name，年龄是$age岁。
 """,
