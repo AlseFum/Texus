@@ -9,3 +9,4 @@ __pycache__/
 .backup/
 src/Database/.backup/
 
+dist/

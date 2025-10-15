@@ -26,6 +26,11 @@ async def startup_event():
 async def shutdown_event():
     """服务器关闭时的清理"""
 
+    # 停止Agent系统
+    agent_manager = get_agent_manager()
+    if agent_manager:
+        agent_manager.stop()
+    
     # 停止备份系统
     stop_backup_system()
 # 配置 CORS

@@ -1,3 +1,4 @@
+#collect dependencies that VSCode extensions can't detect and will alarm
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi import Request, FastAPI, Query, Cookie
 from fastapi.middleware.cors import CORSMiddleware
