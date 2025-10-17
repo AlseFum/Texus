@@ -21,6 +21,7 @@ class Context:
         self.parent = parent
         self.recursion_depth = 0  # 递归深度
         self.max_recursion = 100  # 最大递归深度
+        self.local_items: Dict[str, Any] = {}  # 局部item定义（内部item）
     
     def get_variable(self, name: str) -> Any:
         """获取变量值"""
@@ -34,10 +35,19 @@ class Context:
         """设置变量值"""
         self.variables[name] = value
     
+    def set_local_item(self, name: str, value: Any):
+        """设置局部item定义"""
+        self.local_items[name] = value
+    
     def get_item(self, name: str) -> Any:
         """获取 item 定义"""
+        # 首先检查局部item
+        if name in self.local_items:
+            return self.local_items[name]
+        # 然后检查全局item
         if name in self.items:
             return self.items[name]
+        # 最后检查父上下文
         if self.parent:
             return self.parent.get_item(name)
         return None
@@ -272,6 +282,9 @@ class Generator:
     
     def _replace_refs_in_expr(self, expr: str, context: Context) -> str:
         """替换表达式中的变量和 item 引用"""
+        # 先处理转义字符 \$ -> $
+        expr = expr.replace('\\$', '$')
+        
         # 替换 $varname
         def replace_var(match):
             var_name = match.group(1)

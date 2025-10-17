@@ -1,4 +1,5 @@
-这个文档讲generator的文法
+这个generator用于随机内容生成，也要兼容外部扩展。
+核心内容是个DSL
 ### 语义想法
 `#`表示行内特殊内容，也用于声明一些特殊对象
 比如`#match`
@@ -8,8 +9,10 @@
 `^`与`~`表示导航
 `!`表示宏？
 `&*`分别表示解引用和引用？
-### 基础结构
-使用缩进表示层级结构和随机选择。子项会从同一缩进级别中**随机选择一个**：
+
+使用extern让外部补足复杂性，内部仍然保持简洁和表现力
+## 基础结构：生成器
+使用缩进表示层级结构和随机选择。子项会从同一缩进级别中随机选择一个，并继续尝试向下随机：
 ```
 item
     itemA
@@ -20,7 +23,8 @@ item2
 ```
 表明可能会从item或者item2取值，就是是其下的itemA/B,item2A/B
 最终可能生成 itemA,itemB,item2A,item2B其中任一
-*这样的列表的类型是内建的Generator*
+> 这样的列表的类型是内建的Generator
+#### identifer 名字
 示例中无缩进的首行是`名字`，用于引用。
 名字以特殊字符开头时，须使用引号包裹。当然不以特殊字符开头也可以用引号包裹。
 ``` 不需引号的实例
@@ -31,9 +35,8 @@ item with white space
     perusona！
 ```
 ``` 必须引号
-"#devil may cry"
+":devil may cry"
 ```
-未来可能更加严格
 ### 多行合一
 使用`\`表示转行而非新项
 ```
@@ -82,8 +85,7 @@ optional
 poem
     第一行\n第二行\n\t缩进的第三行
 ```
-
-**首尾空格保留**：
+首尾空格保留：
 ```
 item
     \s\s有前导空格
@@ -107,20 +109,20 @@ Hello #(world|human|my life)!
 ```
 `#(arg1|arg2|argN...)`也是随机列表，写起来更快，但不可用作其他地方
 其定义会被定义在上一级中，作为匿名列表
-可以嵌套
-如果里面的值含有`|`，需要使用引号。这里面的引号会自动拆包
+括号可以嵌套
+括号内的文字仍优先被认定为普通文字，而非程序内容。
+如果里面的值含有`|`，需要使用引号。
 ### 不均等权重
 ```
 item
     itemA
-    :2:itemB
+    ^2 itemB
 ```
 ```
-Hello #(:2:world|human|my life)!
+Hello #(^2 world|human|my life)!
 ```
 上面的计法都表明权重被更改了，数字即表示占用原来多少份的概率
-*计法可能更改*
-*当前的`:`不会与变量部分的`:`混淆，因为不在一个地方*
+^n后面的那个空格会被认定为分隔使用，而不出现在文字中
 ### 使用其他item
 ```
 item
@@ -132,15 +134,29 @@ item2
 ```
 上面两种写法都表示引用，在生成item2时会生成item的值插入进去。
 其中没有引号的写法，其后第一个空格会被省略，因为其作为隔断使用。
-有引号的写法表示引用那些用了空格或者特殊字符的。
-*注意，如果某一行的内容不能在运行时确定，它将不能延申出子项*
-*好吧不好说*
-
+有引号的写法表示引用那些名字用了空格或者特殊字符的。
+*注意，如果某一行的内容使用了其他item，或者特殊计法，它将不能继续往下随机，其下层将是特殊逻辑。*
+*这部分将在之后论述*
+### 内部item
+> 如果某一行的内容使用了其他item，或者特殊计法，它将不能继续往下随机，其下层将是特殊逻辑
+其仍可继续往下写子层。子层定义的item只对此层可见
+```
+Foo
+    line0
+    line1#subitem
+        subitem
+            a
+            b
+            c
+    line2#subitem
+```
+就可能抽出line1a，line1b，line1c，line2 （line2找不到subitem，就没有插值）
+当然，父级item对子级一定是可见的。subitem内可以访问line1，自身的父级用parent访问，其他父级暂时没有设计
 ### 递归与引用深度
 引用可以递归，但需要注意避免无限循环：
 ```
 sentence
-    $sentence and more
+    #sentence and more
     done
 ```
 系统会在递归深度超过一定上限时自动终止并报错。
@@ -148,15 +164,30 @@ sentence
 ### 多重引用与组合
 可以在一行中多次引用：
 ```
+greeting
+    #name meets #name
 name
     Alice
     Bob
     Charlie
-greeting
-    $name meets $name
 ```
 上面可能生成"Alice meets Bob"等组合。每次引用都会重新生成。
 如果需要保持一个结果，请使用变量
+### 重复生成
+使用 `#*n` 来重复生成内容：
+
+```
+list
+    #*3item
+```
+简单重复3次item，整数后直接跟item名称即可。
+```
+numbered
+    #*3`第#i项：#item\n`
+```
+特殊变量 `#i` 在重复中表示当前索引（从1开始）。
+## 变量
+
 ### 变量
 变量被使用一般需要声明
 ```
@@ -166,7 +197,7 @@ $c : itemFoo
 ```
 变量可以为数字，字符串变量，和生成结果。
 变量可以被使用。未设置初值的会被设置初值。
-如a默认为0，b默认为"，c默认为None
+如a默认为0，b默认为"，c默认为Nih
 这里#item只是表示类型，实际上没有赋值。
 要赋值得加上等于号之后的内容
 可以加上const，once，等关键字
@@ -174,6 +205,7 @@ $c : itemFoo
 ```
 $d: const jack #o-lantern = ...
 ```
+### 插值
 ```
 YetAnotherItem
     a is $a
@@ -182,7 +214,7 @@ YetAnotherItem
 ```
 上面即将变量值作为文本输出。其中c在被访问时如果没有赋初值，会显示为None
 特别地，如果$var=item而不是$var:item,将会在每次$var时返回动态评估item的结果
-
+#item 确实可以被用作变量类型，但是行为暂时没有设计
 ### 保持引用一致性
 如果想在同一次生成中保持引用结果一致，使用变量：
 ```
@@ -196,58 +228,67 @@ greeting
     $person=#person meets $person
 ```
 也可以这样，不过范围仅限于行内了
-
-### 重复生成
-使用 `#*n` 来重复生成内容：
-
-```
-list
-    #*3item
-```
-简单重复3次item，整数后直接跟item名称即可。
-
-### 控制次数
-```
-$count=3
-greet
-    #*[count]item
-```
-
-**带索引的重复**：
-```
-numbered
-    #*3`第#i项：#item\n`
-```
-特殊变量 `#i` 在重复中表示当前索引（从1开始）。
 ### 表达式
 变量可以参与数值运算和字符串拼接：
 ```
 $x : num
 $y : num
 calculation
-    #{x = 10}\
-    #{y = 20}\
-    Sum is #[x + y]\
+    Sum is #[x + y]
     Product is #[x * y]
 ```
-`#[expression]`用于计算表达式并输出结果。
+`[expression]`用于计算表达式并输出结果。
 **注意**：表达式内部是纯计算，不能对外界造成任何影响（不能包含赋值、副作用等）。
-
+表达式内视作程序部分，而非文本部分
 支持的运算符：
 - 数值：`+`, `-`, `*`, `/`, `%`（取模）
 - 比较：`>`, `<`, `>=`, `<=`, `==`, `!=`
 - 逻辑：`and`, `or`, `not`
 - 字符串：`+`（拼接）
-### 动态权重：权重值可以使用表达式 `#[]` 动态计算
+### 副作用与赋值
+副作用允许在生成过程中修改变量值，使用`#{}`语法包裹。
+```
+$count : num
+item
+    Hello #{count = count + 1}\
+    You are visitor number $count
+```
+多个副作用可以连续执行：
+```
+$a : num
+$b : num
+complex
+    #{a = 5}#{b = 10} Result: $a and $b
+```
+副作用不会输出任何文本，只改变状态。
+
+**特别地**，可以在行中任意位置进行赋值：
+```
+$mood = "happy"
+story
+    The hero #{mood = "angry"} started fighting.\
+    He was very $mood during the battle.
+```
+赋值操作可以穿插在文本中，不影响输出，但会改变后续的变量值。
+问题在于是否必要？
+
+### 动态控制次数
+```
+$count=3
+greet
+    #*[count]item
+```
+### 动态权重
 ```
 $importance : num
 greeting
-    Hello #(:#[$importance]:world|human|my life)!
+    Hello #(^[$importance]world|human|my life)!
 $mood : num
 story
-    The hero feels #(:#[$mood * 2]:happy|:#[$mood]:sad|neutral)
+    The hero feels #(^[mood * 2]happy|^[mood]sad|neutral)
 ```
 这样可以根据变量值动态调整选项的权重。权重表达式会在生成时计算，支持所有数值运算。
+字符串取权重默认为1.
 ### 条件语句
 使用`?:`三元运算符或条件块：
 ```
@@ -256,39 +297,15 @@ grade
     Your score is $score
     #[$score >= 90 ? "优秀" : "继续努力"]
 ```
-### 内建变量
+### 内建变量与函数
 这些变量是内部设置（用户，系统）而非生成的
 1. URL里query设置了的
 2. 一些系统常量，用户localstorage或者cookie里的
 （现在先留空）
+函数设计包括一些字符串转权重啊什么的
 ## 之后的都不一定被实现
-### 副作用与赋值
-副作用允许在生成过程中修改变量值，使用`#{}`语法包裹。
-```
-$count : num
-item
-    Hello #{$count = $count + 1}\
-    You are visitor number $count
-```
-多个副作用可以连续执行：
-```
-$a : num
-$b : num
-complex
-    #{$a = 5}#{$b = 10} Result: $a and $b
-```
-副作用不会输出任何文本，只改变状态。
 
-**特别地**，可以在行中任意位置进行赋值：
-```
-$mood = "happy"
-story
-    The hero #{$mood = "angry"} started fighting.\
-    He was very $mood during the battle.
-```
-赋值操作可以穿插在文本中，不影响输出，但会改变后续的变量值。
-
-### 列表和数组 不一定支持
+### 列表和数组
 声明和使用列表：
 
 **列表声明**：

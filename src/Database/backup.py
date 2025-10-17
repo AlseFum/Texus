@@ -138,7 +138,7 @@ class BackupManager:
             print("警告: TOML 不可用，使用 JSON 格式")
             self.format = "json"
     
-    def start_auto_backup(self, tables_dict: Dict[str, Any]):
+    def start_auto_backup(self, tables_dict_or_func):
         """启动自动备份"""
         if self._running:
             print("自动备份已在运行")
@@ -148,7 +148,7 @@ class BackupManager:
         self._stop_event.clear()
         self._backup_thread = threading.Thread(
             target=self._backup_loop,
-            args=(tables_dict,),
+            args=(tables_dict_or_func,),
             daemon=True
         )
         self._backup_thread.start()
@@ -165,10 +165,16 @@ class BackupManager:
             self._backup_thread.join(timeout=5)
         print("自动备份已停止")
     
-    def _backup_loop(self, tables_dict: Dict[str, Any]):
+    def _backup_loop(self, tables_dict_or_func):
         """备份循环"""
         while not self._stop_event.is_set():
             try:
+                # 获取最新的tables字典
+                if callable(tables_dict_or_func):
+                    tables_dict = tables_dict_or_func()
+                else:
+                    tables_dict = tables_dict_or_func
+                
                 # 检查是否有表需要备份
                 if hasattr(tables_dict, 'get_tables_need_sync'):
                     tables_need_sync = tables_dict.get_tables_need_sync()
@@ -237,7 +243,7 @@ class BackupManager:
                     # 长文本会自动使用 """ 多行语法
                     toml.dump(backup_data, f)
             
-            print(f"备份已创建: {backup_path}")
+            print(f"+ {backup_path}")
             
             # 清理旧备份
             self._cleanup_old_backups()
@@ -270,7 +276,7 @@ class BackupManager:
             files_to_delete = backup_files[self.max_backups:]
             for file_path in files_to_delete:
                 file_path.unlink()
-                print(f"已删除旧备份: {file_path}")
+                print(f"- {file_path}")
                 
         except Exception as e:
             print(f"清理旧备份时出错: {e}")

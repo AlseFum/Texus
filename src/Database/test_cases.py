@@ -330,5 +330,194 @@ main
         "lastSavedTime": datetime.now()
     }))
     
-    print(f"✓ 已加载 {15} 个 Gen 测试用例")
+    # 测试16: 新功能综合测试 - 多行注释、带引号标识符、权重语法、内部item等
+    pub_table.set("test_new_features", entry(mime="text", value={
+        "text": r"""// 新功能综合测试
+// ========================================
+
+/* 
+这是多行注释测试
+可以跨越多行
+支持嵌套和复杂内容
+*/
+
+// 测试变量修饰符
+$const_var : const num = 42
+$once_var : once str = "一次性变量"
+$normal_var : num = 10
+
+// 测试带引号的标识符
+"item with spaces"
+    value1
+    value2
+    value3
+
+"特殊字符!@#$%"
+    special_value1
+    special_value2
+
+// 测试新的权重语法 ^n
+weighted_item
+    ^2 high_weight_option
+    ^5 very_high_weight
+    normal_weight
+    ^3 medium_weight
+
+// 测试动态权重 ^[expr]
+$mood : num = 3
+dynamic_weight_test
+    ^[$mood] happy_option
+    ^[$mood * 2] very_happy_option
+    normal_option
+
+// 测试行内随机的新权重语法
+inline_weight_test
+    Hello #(^2 world|^[$mood] human|my life)!
+    Status: #(^3 excellent|^2 good|normal)
+
+// 测试内部item（子层定义的item只对此层可见）
+Foo
+    line0
+    line1#subitem
+        subitem
+            a
+            b
+            c
+    line2#subitem
+    line3
+
+// 测试转义字符
+escape_test
+    Price is \$100
+    Special chars: \# \[ \] \\ 
+    Newline: \nTab: \tSpace: \s
+    Mixed: \$#[\$normal_var + 5]
+
+// 测试三元运算符
+$score : num = 85
+grade_test
+    Your score is $score
+    #[$score >= 90 ? "优秀" : "继续努力"]
+    #[$score >= 80 ? "良好" : $score >= 60 ? "及格" : "不及格"]
+
+// 测试动态重复次数
+$repeat_count = 3
+repeat_test
+    #*[repeat_count]item
+    #*[$mood]`重复$i次\n`
+
+// 测试副作用和变量操作
+$counter : num = 0
+side_effect_test
+    Count: #{counter = counter + 1} $counter
+    Count: #{counter++} $counter
+    Count: #{counter += 5} $counter
+
+// 测试空值和可选内容
+optional_test
+    something
+    
+    another thing
+    :2:weighted_empty
+
+// 测试多行合一
+multiline_test
+    line1\
+    line2#(1|2|3)\
+    line3
+
+// 测试引用和一致性
+name
+    Alice
+    Bob
+    Charlie
+
+greeting
+    #name meets #name
+
+$person = #name
+consistent_greeting
+    $person meets $person
+
+// 测试表达式运算
+$x : num = 10
+$y : num = 5
+calculation
+    Sum is #[$x + $y]
+    Product is #[$x * $y]
+    Comparison: #[$x > $y ? "x is greater" : "y is greater"]
+
+// 主入口
+main
+    ════════════════════════════════════════\n\
+    🆕 Gen 新功能综合测试\n\
+    ════════════════════════════════════════\n\n\
+    
+    📝 测试结果：\n\n\
+    
+    🔹 带引号标识符：\n\
+    #"item with spaces"\n\n\
+    
+    🔹 新权重语法：\n\
+    #weighted_item\n\n\
+    
+    🔹 动态权重：\n\
+    #dynamic_weight_test\n\n\
+    
+    🔹 行内权重：\n\
+    #inline_weight_test\n\n\
+    
+    🔹 内部item：\n\
+    #Foo\n\n\
+    
+    🔹 转义字符：\n\
+    #escape_test\n\n\
+    
+    🔹 三元运算符：\n\
+    #grade_test\n\n\
+    
+    🔹 动态重复：\n\
+    #repeat_test\n\n\
+    
+    🔹 副作用：\n\
+    #side_effect_test\n\n\
+    
+    🔹 可选内容：\n\
+    #optional_test\n\n\
+    
+    🔹 多行合一：\n\
+    #multiline_test\n\n\
+    
+    🔹 引用一致性：\n\
+    #greeting\n\
+    #consistent_greeting\n\n\
+    
+    🔹 表达式运算：\n\
+    #calculation\n\n\
+    
+    ════════════════════════════════════════\n\
+    ✅ 所有新功能测试完成！\n\
+    ════════════════════════════════════════\n\
+    
+    /* 已测试的新功能：
+       ✅ 多行注释 /* */
+       ✅ 带引号标识符 "item with spaces"
+       ✅ 新权重语法 ^n 和 ^[expr]
+       ✅ 内部item支持（子层可见性）
+       ✅ 变量修饰符 const, once
+       ✅ 转义字符 \$ \# \[ \] \\
+       ✅ 三元运算符 ?:
+       ✅ 动态重复次数 #*[expr]
+       ✅ 动态权重 #(^[expr]option|option)
+       ✅ 副作用和变量操作
+       ✅ 空值和可选内容
+       ✅ 多行合一 \
+       ✅ 引用一致性
+       ✅ 表达式运算
+    */
+""",
+        "lastSavedTime": datetime.now()
+    }))
+    
+    print(f"✓ 已加载 {16} 个 Gen 测试用例")
 

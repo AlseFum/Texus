@@ -10,13 +10,11 @@ app = FastAPI(title="Note Server", version="0.1.0")
 # 启动事件
 @app.on_event("startup")
 async def startup_event():
-    """服务器启动时的初始化"""
-    
     # 初始化备份系统
     init_backup_system(
         backup_dir="src/Database/.backup",  # 备份目录
         max_backups=10,                      # 保留10个备份
-        backup_interval=10,                  # 每10秒备份一次
+        backup_interval=60,                  # 每10秒备份一次
         format="toml"                        # 使用TOML格式
     )
     
@@ -24,13 +22,6 @@ async def startup_event():
 # 关闭事件
 @app.on_event("shutdown")
 async def shutdown_event():
-    """服务器关闭时的清理"""
-
-    # 停止Agent系统
-    agent_manager = get_agent_manager()
-    if agent_manager:
-        agent_manager.stop()
-    
     # 停止备份系统
     stop_backup_system()
 # 配置 CORS

@@ -35,6 +35,73 @@ class Parser:
         self.current_line = 0
         self.items = {}  # 存储 item 定义
         self.variables = {}  # 存储变量声明
+        
+        # 预处理：移除所有注释
+        self.lines = self._remove_comments(self.text)  # 直接传入原始文本
+    
+    def _remove_comments(self, source_text):
+        """预处理：移除所有注释（单行和多行）
+        
+        Args:
+            source_text: 原始文本内容
+        """
+        processed_text = self._remove_comments_from_text(source_text)
+        return processed_text.split('\n')
+
+    def _remove_comments_from_text(self, source):
+        """从整个文本中移除注释（逐字解析）
+        
+        Args:
+            source: 要处理的原始文本
+        """
+        result = []
+        i = 0
+        in_multiline_comment = False
+        in_string = False
+        
+        while i < len(source):
+            char = source[i]
+            
+            # 检查是否在字符串字面量中
+            if char == '"' and not in_multiline_comment:
+                in_string = not in_string
+                result.append(char)
+                i += 1
+                continue
+            
+            # 如果在字符串中，直接保留字符
+            if in_string:
+                result.append(char)
+                i += 1
+                continue
+            
+            # 检查单行注释
+            if not in_multiline_comment and i + 1 < len(source) and source[i:i+2] == '//':
+                # 单行注释，跳过到行尾
+                while i < len(source) and source[i] != '\n':
+                    i += 1
+                continue
+            
+            # 检查多行注释开始
+            if not in_multiline_comment and i + 1 < len(source) and source[i:i+2] == '/*':
+                in_multiline_comment = True
+                i += 2
+                continue
+            
+            # 检查多行注释结束
+            if in_multiline_comment and i + 1 < len(source) and source[i:i+2] == '*/':
+                in_multiline_comment = False
+                i += 2
+                continue
+            
+            # 如果不在注释中，保留字符
+            if not in_multiline_comment:
+                result.append(char)
+            
+            i += 1
+        
+        return ''.join(result)
+    
     
     def parse(self):
         """解析入口，返回 GenFile 对象"""
@@ -47,6 +114,8 @@ class Parser:
             # 选择根入口：优先使用 'main'，否则使用第一个 item
             if self.items:
                 # 优先查找 'main' item
+                if 'START' in self.items:
+                    root_gen = self.items['START']
                 if 'main' in self.items:
                     root_gen = self.items['main']
                 else:
@@ -123,10 +192,7 @@ class Parser:
                 self.current_line += 1
                 continue
             
-            # 跳过注释
-            if stripped.startswith('//'):
-                self.current_line += 1
-                continue
+            # 注释已在预处理阶段移除，这里不需要处理
             
             # 变量声明
             if stripped.startswith('$'):
@@ -143,18 +209,44 @@ class Parser:
     
     def _parse_variable_declaration(self, line):
         """解析变量声明"""
-        # $var : num
-        if ':' in line and '=' not in line:
-            parts = line.split(':', 1)
-            var_name = parts[0].strip()[1:]  # 移除 $
-            var_type = parts[1].strip()
-            self.variables[var_name] = {'type': var_type}
+        # 移除开头的 $
+        line = line[1:].strip()
         
-        # $var = value
-        elif '=' in line:
-            parts = line.split('=', 1)
-            var_name = parts[0].strip()[1:]  # 移除 $
-            value_str = parts[1].strip()
+        # 解析变量名和修饰符
+        var_name = line
+        modifiers = []
+        
+        # 检查关键字修饰符
+        keywords = ['const', 'once']
+        for keyword in keywords:
+            if line.startswith(keyword + ' '):
+                modifiers.append(keyword)
+                line = line[len(keyword):].strip()
+        
+        # 提取变量名（到第一个空格或冒号或等号）
+        name_end = len(line)
+        for char in [':', '=', ' ']:
+            pos = line.find(char)
+            if pos != -1 and pos < name_end:
+                name_end = pos
+        
+        var_name = line[:name_end].strip()
+        rest = line[name_end:].strip()
+        
+        # $var : num
+        if rest.startswith(':'):
+            var_type = rest[1:].strip()
+            self.variables[var_name] = {
+                'type': var_type,
+                'modifiers': modifiers
+            }
+        
+        # $var : type = value
+        elif ':' in rest and '=' in rest:
+            # 处理 $var : type = value 格式
+            type_part, value_part = rest.split('=', 1)
+            var_type = type_part.split(':', 1)[1].strip()
+            value_str = value_part.strip()
             
             # 解析值
             if value_str.startswith('"') and value_str.endswith('"'):
@@ -177,10 +269,48 @@ class Parser:
                 except:
                     value = value_str
             
-            self.variables[var_name] = {'value': value}
+            self.variables[var_name] = {
+                'type': var_type,
+                'value': value,
+                'modifiers': modifiers
+            }
+        
+        # $var = value
+        elif rest.startswith('='):
+            value_str = rest[1:].strip()
+            
+            # 解析值
+            if value_str.startswith('"') and value_str.endswith('"'):
+                # 字符串字面量
+                value = value_str[1:-1]
+            elif value_str.startswith('#[') and value_str.endswith(']'):
+                # 表达式
+                expr = value_str[2:-1]
+                value = Generator("Expression", expr)
+            elif value_str.startswith('#'):
+                # Item 引用
+                item_name = value_str[1:]
+                value = Generator("ItemRef", item_name)
+            else:
+                # 数字或其他
+                try:
+                    value = float(value_str)
+                    if value == int(value):
+                        value = int(value)
+                except:
+                    value = value_str
+            
+            self.variables[var_name] = {
+                'value': value,
+                'modifiers': modifiers
+            }
     
     def _parse_item_definition(self, item_name):
         """解析 item 定义及其子项"""
+        # 处理带引号的item名称
+        if item_name.startswith('"') and item_name.endswith('"'):
+            item_name = item_name[1:-1]
+        
         # 保存 item 名称
         start_line = self.current_line
         self.current_line += 1
@@ -198,10 +328,7 @@ class Parser:
                 self.current_line += 1
                 continue
             
-            # 注释跳过
-            if stripped.startswith('//'):
-                self.current_line += 1
-                continue
+            # 注释已在预处理阶段移除，这里不需要处理
             
             indent = self._get_indent(line)
             
@@ -225,8 +352,8 @@ class Parser:
                     line_idx += 1
                     if line_idx < len(self.lines):
                         next_line = self.lines[line_idx].strip()
-                        # 跳过空行和注释
-                        while next_line == '' or next_line.startswith('//'):
+                        # 跳过空行（注释已在预处理阶段移除）
+                        while next_line == '':
                             line_idx += 1
                             if line_idx >= len(self.lines):
                                 break
@@ -241,6 +368,11 @@ class Parser:
                 
                 # 解析合并后的行
                 child = self._parse_line_content(merged_line)
+                
+                # 检查是否有内部item定义
+                if self._has_internal_items(line_idx):
+                    child = self._parse_with_internal_items(child, line_idx, base_indent)
+                
                 children.append(child)
             
             self.current_line += 1
@@ -258,8 +390,23 @@ class Parser:
         weight = 1
         content = line
         
-        # 权重语法：:n:content 或 :#[expr]:content 或 #[expr]:content
-        if line.startswith(':#['):
+        # 检查 ^n 权重语法
+        if line.startswith('^'):
+            # 静态权重 ^n
+            match = re.match(r'^\^(\d+)\s+(.*)$', line)
+            if match:
+                weight = int(match.group(1))
+                content = match.group(2)
+            # 动态权重 ^[expr]
+            elif line.startswith('^['):
+                match = re.match(r'^\^\[([^\]]+)\]\s+(.*)$', line)
+                if match:
+                    weight_expr = match.group(1)
+                    content = match.group(2)
+                    weight = Generator("Expression", weight_expr)
+        
+        # 检查旧的权重语法（保持兼容）
+        elif line.startswith(':#['):
             # 动态权重（以冒号开头）
             match = re.match(r'^:#\[([^\]]+)\]:(.*)$', line)
             if match:
@@ -382,6 +529,14 @@ class Parser:
                         pos = end + 1
                         continue
             
+                # 带引号的item引用 #"item with spaces"
+                quote_item_match = re.match(r'#"([^"]+)"', text[pos:])
+                if quote_item_match:
+                    item_name = quote_item_match.group(1)
+                    parts.append(Generator("ItemRef", item_name))
+                    pos += len(quote_item_match.group(0))
+                    continue
+                
                 # Item 引用 #item（后面跟空格或结束）
                 item_match = re.match(r'#(\w+)', text[pos:])
                 if item_match:
@@ -434,7 +589,23 @@ class Parser:
             weight = 1
             content = part
             
-            if part.startswith(':#['):
+            # 检查 ^n 权重语法
+            if part.startswith('^'):
+                # 静态权重 ^n
+                match = re.match(r'^\^(\d+)\s+(.*)$', part)
+                if match:
+                    weight = int(match.group(1))
+                    content = match.group(2).strip()
+                # 动态权重 ^[expr]
+                elif part.startswith('^['):
+                    match = re.match(r'^\^\[([^\]]+)\]\s+(.*)$', part)
+                    if match:
+                        weight_expr = match.group(1)
+                        content = match.group(2).strip()
+                        weight = Generator("Expression", weight_expr)
+            
+            # 检查旧的权重语法（保持兼容）
+            elif part.startswith(':#['):
                 # 动态权重（以冒号开头）
                 match = re.match(r'^:#\[([^\]]+)\]:(.*)$', part)
                 if match:
@@ -568,6 +739,107 @@ class Parser:
         if count == 0:
             return pos - 1
         return -1
+    
+    def _has_internal_items(self, line_idx):
+        """检查指定行之后是否有内部item定义"""
+        if line_idx + 1 >= len(self.lines):
+            return False
+        
+        # 检查下一行的缩进是否更深
+        next_line = self.lines[line_idx + 1]
+        next_indent = self._get_indent(next_line)
+        current_indent = self._get_indent(self.lines[line_idx])
+        
+        return next_indent > current_indent
+    
+    def _parse_with_internal_items(self, child, line_idx, base_indent):
+        """解析带有内部item的内容"""
+        # 创建一个特殊的生成器，在生成时设置局部item
+        class InternalItemGenerator(Generator):
+            def __init__(self, child, parser, line_idx, base_indent):
+                super().__init__("InternalItem", child)
+                self.child = child
+                self.parser = parser
+                self.line_idx = line_idx
+                self.base_indent = base_indent
+            
+            def gen(self, context=None):
+                if context is None:
+                    context = Context()
+                
+                # 解析内部item
+                internal_items = self.parser._parse_internal_items(self.line_idx, self.base_indent)
+                
+                # 设置到上下文中
+                for name, item in internal_items.items():
+                    context.set_local_item(name, item)
+                
+                # 生成内容
+                return self.child.gen(context)
+        
+        return InternalItemGenerator(child, self, line_idx, base_indent)
+    
+    def _parse_internal_items(self, start_line_idx, base_indent):
+        """解析内部item定义"""
+        internal_items = {}
+        line_idx = start_line_idx + 1
+        
+        while line_idx < len(self.lines):
+            line = self.lines[line_idx]
+            stripped = line.strip()
+            
+            # 空行跳过
+            if not stripped:
+                line_idx += 1
+                continue
+            
+            # 注释已在预处理阶段移除，这里不需要处理
+            
+            indent = self._get_indent(line)
+            
+            # 如果缩进不够深，结束
+            if indent <= base_indent:
+                break
+            
+            # 如果是直接子项（比base_indent深一级），解析为内部item
+            if indent == base_indent + 4:  # 假设4个空格为一级缩进
+                # 提取item名称
+                item_name = stripped
+                if item_name.startswith('"') and item_name.endswith('"'):
+                    item_name = item_name[1:-1]
+                
+                # 解析子项
+                children = []
+                line_idx += 1
+                
+                while line_idx < len(self.lines):
+                    sub_line = self.lines[line_idx]
+                    sub_stripped = sub_line.strip()
+                    
+                    if not sub_stripped:  # 注释已在预处理阶段移除
+                        line_idx += 1
+                        continue
+                    
+                    sub_indent = self._get_indent(sub_line)
+                    if sub_indent <= indent:
+                        break
+                    
+                    if sub_indent == indent + 4:
+                        # 解析子项内容
+                        child = self._parse_line_content(sub_stripped)
+                        children.append(child)
+                    
+                    line_idx += 1
+                
+                # 创建内部item
+                if children:
+                    internal_items[item_name] = Generator("Roulette", children)
+                else:
+                    internal_items[item_name] = Generator("PlainList", [""])
+            else:
+                line_idx += 1
+        
+        return internal_items
     
     def _get_indent(self, line):
         """获取行的缩进级别（空格数）"""
