@@ -10,3 +10,4 @@ __pycache__/
 src/Database/.backup/
 
 dist/
+node_modules/
