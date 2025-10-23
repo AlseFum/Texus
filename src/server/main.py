@@ -70,5 +70,21 @@ from util import first_avail
 def visit_internal(pack):
     mime = first_avail(pack.mime, getmime(pack.entry), "text")
     Dispatcher = Port.dispatch(mime)
+    
+    # 如果Dispatcher是Text且mime不为空（说明有后缀），尝试Meta脚本处理
+    if Dispatcher == Port.Text and pack.mime and pack.mime != "text":
+        # 直接查找mime对应的entry
+        from Database import pub_get
+        meta_script = pub_get(pack.mime)
+        if meta_script:  # 如果找到了对应的entry
+            # 使用Meta.accessScript处理
+            output = Port.Meta.accessScript(pack)
+            return output.value if output.skip else wrap(output)
+        else:
+            # 如果后缀不为空但没有找到对应的entry，返回错误
+            from protocol.types import FinalVis
+            error_msg = f"Not Available!"
+            return FinalVis.of("raw", error_msg).value
+    
     output = Dispatcher.access(pack)
     return output.value if output.skip else wrap(output)
