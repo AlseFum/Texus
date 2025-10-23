@@ -163,6 +163,7 @@ input_data = '''{input_data}'''
                 're': re,      # 正则表达式
                 'request': pack,  # 传入的pack对象
                 'result': None,   # 用于提取结果的变量
+                'source': source_data,  # 源数据对象
             }
             
             # 捕获输出

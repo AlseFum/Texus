@@ -4,6 +4,7 @@ __pycache__/
 *.pyc
 .env
 .DS_Store
+uv.lock
 
 # 备份文件
 .backup/
