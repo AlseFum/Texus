@@ -1,6 +1,6 @@
 from .generator import Generator, Context
 from .file import GenFile
-from protocol.types import entry
+from Common.types import entry
 from datetime import datetime
 import re
 

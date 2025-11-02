@@ -1,5 +1,5 @@
 from typing import Optional
-from protocol.types import FinalVis, entry
+from Common.types import FinalVis, entry
 from Database import Table, pub_get, pub_set
 
 from .generator import Generator

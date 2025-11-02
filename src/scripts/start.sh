@@ -55,7 +55,7 @@ fi
 echo -e "${GREEN}✓ 依赖已同步${NC}"
 
 # 检查端口是否被占用
-PORT=8000
+PORT=7123
 if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
     echo -e "${YELLOW}警告: 端口 $PORT 已被占用${NC}"
     read -p "是否要杀死占用进程? (y/n) " -n 1 -r

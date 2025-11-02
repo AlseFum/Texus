@@ -1,11 +1,11 @@
 [project]
-name = "noteserver"
+name = "texus"
 version = "0.1.0"
-description = "FastAPI notes server"
+description = "Runnable Notepad"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
-authors = [{ name = "Noteserver Dev" } ]
+authors = [{ name = "Alsefum" } ]
 dependencies = [
   "fastapi>=0.115.0",
   "uvicorn[standard]>=0.30.0",

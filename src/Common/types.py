@@ -1,28 +1,39 @@
 from typing import Dict
+from enum import Enum
+
+class WhoType(Enum):
+    """访问者类型枚举"""
+    USER = "user"
+    AGENT = "agent"
+
+class ByType(Enum):
+    """访问方式类型枚举"""
+    WEB = "web"
+    API = "api"
+    SCRIPT = "script"
+    AGENT = "agent"
 
 class Access:
-    def __init__(self, who: str, by: str, path: str, 
-                 query: Dict[str,str], cookies: Dict[str,str], mime: str = "", 
-                 entry: str = ""):
+    """HTTP请求到内部访问对象的转换"""
+    
+    def __init__(self, path: str = "", mime: str = "", entry: str = "", 
+                 who: str = "", by: str = "", 
+                 query: Dict[str, str] = None, cookies: Dict[str, str] = None):
         self.who = who
         self.by = by
         self.path = path
-        self.query = query
-        self.cookies = cookies
+        self.query = query or {}
+        self.cookies = cookies or {}
         self.mime = mime
         self.entry = entry
     
-    # 类属性，方便访问枚举值
-    User = "user"
-    Web = "web"
-    Script = "script"
-    Agent = "agent"
-    API = "api"
     @staticmethod
     def of(who: str, by: str, path: str, 
-                 query: Dict[str,str], cookies: Dict[str,str], mime: str = "", 
-                 entry: str = ""):
-        return Access(who, by, path, query, cookies, mime, entry)
+           query: Dict[str, str] = None, cookies: Dict[str, str] = None,
+           mime: str = "", entry: str = ""):
+        """兼容性工厂方法"""
+        return Access(path=path, mime=mime, entry=entry, who=who, by=by, 
+                     query=query or {}, cookies=cookies or {})
 
 
 class Renderee():
@@ -58,9 +69,11 @@ class FinalVis(Renderee):
     pass  # 继承父类的所有功能
 
 class entry(Renderee):
-    """文件对象实现"""
-    #
-    lastModifiedTime = None
+    """文件对象实现 - 存储在数据库中的内容"""
+    
+    def __init__(self, mime: str = "", value: any = None, skip: bool = False):
+        super().__init__(mime, value, skip)
+        self.lastModifiedTime = None
     
     def to_dict(self):
         """将 entry 对象转换为字典"""

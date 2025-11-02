@@ -113,7 +113,7 @@ npm run build    # 构建生产版本
 
 ```python
 from Express import wrap
-from protocol.types import FinalVis
+from Common.types import FinalVis
 
 # 创建渲染对象
 content = FinalVis.of("text", "Hello World")

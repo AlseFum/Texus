@@ -1,4 +1,4 @@
-from protocol.types import entry
+from Common.types import entry
 
 class GenFile(entry):
     def __init__(self, value, root=None):

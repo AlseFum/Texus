@@ -4,7 +4,7 @@
 可以通过调用 load_test_cases() 来加载所有测试用例到数据库。
 """
 
-from protocol.types import entry
+from Common.types import entry
 from datetime import datetime
 
 

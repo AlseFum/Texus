@@ -1,5 +1,5 @@
 import os
-from protocol.types import FinalVis,Renderee
+from Common.types import FinalVis,Renderee
 from util import HTMLResponse
 
 def useRaw(v):

@@ -126,7 +126,7 @@ stop_backup_system()
 Database 使用 `entry` 对象来存储结构化数据：
 
 ```python
-from protocol.types import entry
+from Common.types import entry
 from datetime import datetime
 
 # 创建 entry 对象
@@ -183,7 +183,7 @@ config = pub_get("user_config")
 
 ```python
 from Database import pub_set, pub_get
-from protocol.types import entry
+from Common.types import entry
 from datetime import datetime
 
 # 存储文件内容

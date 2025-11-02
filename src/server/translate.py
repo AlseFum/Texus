@@ -1,5 +1,5 @@
 from util import Request
-from protocol.types import Access
+from Common.types import Access, ByType
 from Database import getmime
 
 
@@ -12,9 +12,9 @@ def detect_by(request: Request):
     
     # 如果 query 中明确指定了 from 参数，优先使用
     if from_param == "api":
-        return Access.API
+        return ByType.API
     elif from_param == "web":
-        return Access.Web
+        return ByType.WEB
     
     # 如果没有明确指定，则根据 User-Agent 等判断
     user_agent = request.headers.get("user-agent", "").lower()
@@ -81,15 +81,15 @@ def detect_by(request: Request):
     
     # 判断逻辑
     if any(api_indicators):
-        return Access.API
+        return ByType.API
     elif any(web_indicators):
-        return Access.Web
+        return ByType.WEB
     else:
         # 默认情况，可能是未知的客户端
         if "json" in accept or "json" in content_type:
-            return Access.API
+            return ByType.API
         else:
-            return Access.API
+            return ByType.API
 
 
 def detect_who(request: Request):

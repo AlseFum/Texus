@@ -12,18 +12,28 @@ app = FastAPI(title="Note Server", version="0.1.0")
 async def startup_event():
     # 初始化备份系统
     init_backup_system(
-        backup_dir="src/Database/.backup",  # 备份目录
-        max_backups=10,                      # 保留10个备份
-        backup_interval=60,                  # 每10秒备份一次
-        format="toml"                        # 使用TOML格式
+        backup_dir="backup",  # 备份目录
+        max_backups=15,                      # 保留10个备份
+        backup_interval=10,                  # 每10秒备份一次
+        format="json"                        # 使用TOML格式
     )
     
+    # 初始化定时任务管理器
+    from Port.Timer import TimerManager
+    timer_manager = TimerManager()
+    timer_manager.start()
 
 # 关闭事件
 @app.on_event("shutdown")
 async def shutdown_event():
+     # 停止定时任务管理器
+    from Port.Timer import TimerManager
+    timer_manager = TimerManager()
+    timer_manager.stop()
     # 停止备份系统
     stop_backup_system()
+    
+   
 # 配置 CORS
 app.add_middleware(
     CORSMiddleware,
@@ -71,20 +81,15 @@ def visit_internal(pack):
     mime = first_avail(pack.mime, getmime(pack.entry), "text")
     Dispatcher = Port.dispatch(mime)
     
-    # 如果Dispatcher是Text且mime不为空（说明有后缀），尝试Meta脚本处理
-    if Dispatcher == Port.Text and pack.mime and pack.mime != "text":
+    # 如果Dispatcher是Default（dispatch匹配失败）且mime不为空（说明有后缀），尝试Meta脚本处理
+    if Dispatcher == Port.Default and pack.mime:
         # 直接查找mime对应的entry
         from Database import pub_get
-        meta_script = pub_get(pack.mime)
-        if meta_script:  # 如果找到了对应的entry
+        if pub_get(pack.mime):  # 如果找到了对应的entry
             # 使用Meta.accessScript处理
             output = Port.Meta.accessScript(pack)
             return output.value if output.skip else wrap(output)
-        else:
-            # 如果后缀不为空但没有找到对应的entry，返回错误
-            from protocol.types import FinalVis
-            error_msg = f"Not Available!"
-            return FinalVis.of("raw", error_msg).value
+        #no else, else just uses Text to do every rest things.
     
     output = Dispatcher.access(pack)
     return output.value if output.skip else wrap(output)

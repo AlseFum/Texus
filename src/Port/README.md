@@ -59,7 +59,7 @@ port = dispatch("raw")     # 返回 Raw Port
 
 ```python
 from Port import Text
-from protocol.types import Access
+from Common.types import Access
 
 # 创建访问包
 pack = Access(
@@ -122,7 +122,7 @@ print("Script completed")
 - **操作记录** - 记录所有数据库操作
 - **错误处理** - 捕获和处理执行错误
 
-#### DatabaseAPI 功能
+#### vmAPI 功能
 
 ```python
 # 在脚本中使用 db API
@@ -215,7 +215,7 @@ return output.value if output.skip else wrap(output)
 ### 创建自定义 Port
 
 ```python
-from protocol.types import FinalVis
+from Common.types import FinalVis
 
 class MyCustomPort:
     @staticmethod
