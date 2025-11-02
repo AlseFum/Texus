@@ -12,10 +12,10 @@ app = FastAPI(title="Note Server", version="0.1.0")
 async def startup_event():
     # 初始化备份系统
     init_backup_system(
-        backup_dir="backup",  # 备份目录
-        max_backups=15,                      # 保留10个备份
-        backup_interval=10,                  # 每10秒备份一次
-        format="json"                        # 使用TOML格式
+        backup_dir="backup",
+        max_backups=15,
+        backup_interval=10,
+        format="json"
     )
     
     # 初始化定时任务管理器
@@ -30,7 +30,6 @@ async def shutdown_event():
     from Port.Timer import TimerManager
     timer_manager = TimerManager()
     timer_manager.stop()
-    # 停止备份系统
     stop_backup_system()
     
    
@@ -50,7 +49,7 @@ async def health_check():
 scan_assets_directories()
 @app.get("/assets/{path:path}")
 async def serve_assets(path: str):
-    """服务 assets 文件"""
+    """提供 assets 文件"""
     return serve(path)
 #------------
 @app.get("/api/{path:path}")

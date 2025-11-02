@@ -13,3 +13,4 @@ src/Database/.backup/
 dist/
 node_modules/
 backup/
+.backup/
