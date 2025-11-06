@@ -54,18 +54,28 @@ if [ $? -ne 0 ]; then
 fi
 echo -e "${GREEN}✓ 依赖已同步${NC}"
 
-# 检查端口是否被占用
+# 检查端口是否被占用（非交互处理）
 PORT=8000
 if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
-    echo -e "${YELLOW}警告: 端口 $PORT 已被占用${NC}"
-    read -p "是否要杀死占用进程? (y/n) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        lsof -ti:$PORT | xargs kill -9
-        echo -e "${GREEN}✓ 已清理端口 $PORT${NC}"
-    else
-        echo -e "${YELLOW}请手动处理端口占用或修改配置${NC}"
+    echo -e "${YELLOW}警告: 端口 $PORT 已被占用，尝试自动释放...${NC}"
+    lsof -ti:$PORT | xargs kill -9 || true
+    sleep 1
+    if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
+        echo -e "${RED}错误: 端口 $PORT 仍被占用${NC}"
         exit 1
+    fi
+    echo -e "${GREEN}✓ 已清理端口 $PORT${NC}"
+fi
+
+# 如缺少前端构建产物且系统存在 npm，则自动构建 menu 前端
+AUTO_BUILD_MENU_FRONTEND=${AUTO_BUILD_MENU_FRONTEND:-true}
+MENU_DIST="src/Express/menu/dist/index.html"
+if [ "$AUTO_BUILD_MENU_FRONTEND" = "true" ] && [ ! -f "$MENU_DIST" ]; then
+    if command -v npm >/dev/null 2>&1; then
+        echo -e "${YELLOW}检测到缺少 menu/dist，自动构建前端...${NC}"
+        (cd src/Express/menu && npm install && npm run build) || echo -e "${YELLOW}前端构建失败，继续启动后端${NC}"
+    else
+        echo -e "${YELLOW}缺少 npm，跳过前端构建${NC}"
     fi
 fi
 

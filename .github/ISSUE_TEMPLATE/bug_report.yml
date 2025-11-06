@@ -1,0 +1,28 @@
+name: Bug report
+description: 报告一个问题或异常行为
+title: "[Bug] 简要描述问题"
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: 描述
+      description: 请清晰描述问题现象与期望行为
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 清晰的复现步骤（最好带最小示例）
+  - type: input
+    id: version
+    attributes:
+      label: 版本/提交
+      description: 例如 v1.0.0 或 git commit hash
+  - type: input
+    id: env
+    attributes:
+      label: 运行环境
+      description: OS/浏览器/Python/Node 版本等
+

@@ -5,6 +5,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
+[![CI](https://github.com/<your-org>/texus/actions/workflows/ci.yml/badge.svg)](https://github.com/<your-org>/texus/actions)
 
 ## 目录
 
@@ -68,12 +69,22 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 git clone <repository-url>
 cd texus
 
-# 启动服务器
-chmod +x start.sh
-./start.sh
+# 安装依赖并启动开发服务器（uv 脚本）
+uv sync
+uv run dev
 ```
 
-服务器将在 `http://localhost:7123` 启动。
+服务器默认在 `http://localhost:8000` 启动（uv run dev）。
+
+#### 前端（menu）构建
+
+```bash
+cd src/Express/menu
+npm install
+npm run build
+```
+
+构建产物将输出到 `src/Express/menu/dist/`，后端会自动提供 `/assets/*` 静态资源并渲染 `.menu` 页面。
 
 详细说明请查看 [快速开始指南](docs/quick-start.md)。
 

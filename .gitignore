@@ -1,3 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# Node
+node_modules/
+*.log
+
+# Build
+dist/
+build/
+.coverage*
+
+# IDE
+.vscode/
+.idea/
+
+# Project data
+backup/
+*.local.*
+.DS_Store
 __pycache__/
 .venv/
 .uv/
