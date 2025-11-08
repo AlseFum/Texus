@@ -85,16 +85,11 @@ else
     echo -e "${GREEN}✓ 使用端口 $PORT${NC}"
 fi
 
-# 如缺少前端构建产物且系统存在 npm，则自动构建 menu/raw 前端
-AUTO_BUILD_MENU_FRONTEND=${AUTO_BUILD_MENU_FRONTEND:-true}
-MENU_DIST="src/Express/menu/dist/index.html"
+# 如缺少前端构建产物且系统存在 npm，则自动构建 raw 前端
+AUTO_BUILD_FRONTEND=${AUTO_BUILD_FRONTEND:-true}
 RAW_DIST="src/Express/raw/dist/index.html"
-if [ "$AUTO_BUILD_MENU_FRONTEND" = "true" ]; then
+if [ "$AUTO_BUILD_FRONTEND" = "true" ]; then
     if command -v npm >/dev/null 2>&1; then
-        if [ ! -f "$MENU_DIST" ]; then
-        echo -e "${YELLOW}检测到缺少 menu/dist，自动构建前端...${NC}"
-            (cd src/Express/menu && npm install && npm run build) || echo -e "${YELLOW}menu 前端构建失败，继续启动后端${NC}"
-        fi
         if [ ! -f "$RAW_DIST" ]; then
             echo -e "${YELLOW}检测到缺少 raw/dist，自动构建前端...${NC}"
             (cd src/Express/raw && npm install && npm run build) || echo -e "${YELLOW}raw 前端构建失败，继续启动后端${NC}"

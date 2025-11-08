@@ -66,7 +66,6 @@ Express 渲染器**只从** `payload` 字段获取数据：
 
 - **text/note 渲染器**：使用 `payload.text` 字段
 - **raw 渲染器**：使用 `payload.text` 字段
-- **menu 渲染器**：使用 `extract_str(value)` 提取 entry 名称
 
 #### Value vs Payload 的区别
 
