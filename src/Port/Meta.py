@@ -262,7 +262,7 @@ class Meta:
         if success:
             # 只提取print输出的结果
             if output:
-                return FinalVis.of("text", output)
+                return FinalVis.of("text", payload={"text": output})
             else:
                 # 显示更详细的执行信息
                 input_data_repr = repr(input_data[:100] + '...' if len(input_data) > 100 else input_data)
@@ -271,9 +271,10 @@ class Meta:
                     input_data_repr=input_data_repr,
                     request_repr=repr(pack)
                 )
-                return FinalVis.of("text", debug_info)
+                return FinalVis.of("text", payload={"text": debug_info})
         else:
-            return FinalVis.of("text", f"Script execution error: {output}")
+            error_msg = f"Script execution error: {output}"
+            return FinalVis.of("text", payload={"text": error_msg})
 
 # 插件注册函数
 def registry():

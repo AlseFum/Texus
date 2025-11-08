@@ -43,7 +43,15 @@ class Renderee:
     
     @classmethod
     def of(cls, viewtype: str = "", value: any = None, skip: bool = False, payload: Dict = None):
-        """工厂方法"""
+        """工厂方法
+        
+        使用指南：
+        - Web请求（需要渲染）：只传 viewtype 和 payload
+          例：FinalVis.of("text", payload={"text": content})
+        
+        - API请求（返回JSON）：只传 viewtype、value 和 skip=True
+          例：FinalVis.of("text", value={"success": True}, skip=True)
+        """
         return cls(viewtype=viewtype, value=value, skip=skip, payload=payload)
 
 class FinalVis(Renderee):

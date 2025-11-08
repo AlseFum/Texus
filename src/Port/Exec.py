@@ -33,40 +33,46 @@ class Exec:
         
         if not script_content.strip():
             if is_api:
-                return FinalVis.of("text", {
+                # API请求：只需要value，会直接返回
+                return FinalVis.of("text", value={
                     "success": False,
                     "error": "No script content provided",
                     "output": "",
                     "operations": []
                 }, skip=True)
             else:
-                return FinalVis.of("raw", "No script content provided")
+                # Web请求：只需要payload
+                return FinalVis.of("raw", payload={"text": "No script content provided"})
         
         # 使用通用执行函数
         success, output, operations = execute_script(script_content)
         
         if success:
             if is_api:
-                return FinalVis.of("text", {
+                # API请求：只需要value
+                return FinalVis.of("text", value={
                     "success": True,
                     "output": output,
                     "operations": operations,
                     "operations_count": len(operations)
                 }, skip=True)
             else:
-                # Web 请求：直接用 raw 表达 output
-                return FinalVis.of("raw", output if output else "Script executed successfully")
+                # Web请求：只需要payload
+                result_text = output if output else "Script executed successfully"
+                return FinalVis.of("raw", payload={"text": result_text})
         else:
             if is_api:
-                return FinalVis.of("text", {
+                # API请求：只需要value
+                return FinalVis.of("text", value={
                     "success": False,
                     "error": output,
                     "output": "",
                     "operations": operations
                 }, skip=True)
             else:
-                # Web 请求：直接用 raw 表达错误信息
-                return FinalVis.of("raw", f"Script execution error: {output}")
+                # Web请求：只需要payload
+                error_text = f"Script execution error: {output}"
+                return FinalVis.of("raw", payload={"text": error_text})
 
 # 插件注册函数
 def registry():

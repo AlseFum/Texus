@@ -25,7 +25,7 @@ class Gen:
         # 1. 从主表获取内容
         data = main_table.get(pack.entry)
         if data is None:
-            return FinalVis.of("raw", "(empty)")
+            return FinalVis.of("raw", payload={"text": "(empty)"})
         
         # 统一转换为 entry 格式
         if isinstance(data, entry):
@@ -55,12 +55,18 @@ class Gen:
                 genfile = Parser(pub_file).parse()
                 gen_table.set(pack.entry, genfile)
             except Exception as e:
-                return FinalVis.of("raw", f"Error: {e}")
+                return FinalVis.of("raw", payload={"text": f"Error: {e}"})
         
         # 5. 生成内容并输出
         result = genfile.gen()
         is_api = getattr(pack, 'by', '') == 'api'
-        return FinalVis.of("raw", str(result), skip=is_api)
+        result_str = str(result)
+        if is_api:
+            # API请求：只需要value
+            return FinalVis.of("raw", value=result_str, skip=True)
+        else:
+            # Web请求：只需要payload
+            return FinalVis.of("raw", payload={"text": result_str})
 
 # 插件注册函数
 def registry():

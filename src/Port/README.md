@@ -41,6 +41,43 @@ port = dispatch("gen")     # 返回 Gen Port
 port = dispatch("raw")     # 返回 Raw Port
 ```
 
+### Port 与 Express 的集成
+
+Port 模块返回 `FinalVis` 对象，Express 模块负责将其渲染为 HTML：
+
+1. **Port 返回数据**：Port 的 `access()` 方法返回 `FinalVis` 对象
+2. **Express 渲染**：Express 根据 `viewtype` 选择相应的渲染器
+3. **Payload 机制**：使用 `payload` 字段传递渲染所需的数据
+
+```python
+# Port 中推荐的返回方式（避免数据冗余）
+
+# Web 请求（需要渲染）- 只需要 payload
+text_content = "Hello World"
+return FinalVis.of("text", payload={"text": text_content})
+
+# API 请求（返回 JSON）- 只需要 value
+return FinalVis.of("text", value={"success": True, "data": data}, skip=True)
+```
+
+#### Payload 字段说明
+
+Express 渲染器**只从** `payload` 字段获取数据：
+
+- **text/note 渲染器**：使用 `payload.text` 字段
+- **raw 渲染器**：使用 `payload.text` 字段
+- **menu 渲染器**：使用 `extract_str(value)` 提取 entry 名称
+
+#### Value vs Payload 的区别
+
+- **value**：业务数据，用于API返回或内部处理
+- **payload**：渲染数据，专门为Express渲染器准备
+
+**最佳实践**：
+- Web请求（skip=False）：只设置 `payload`，`value` 可以省略
+- API请求（skip=True）：只设置 `value`，`payload` 可以省略
+- 避免同时设置 `value` 和 `payload`，防止数据冗余
+
 ## Port 类型详解
 
 ### 1. Text Port (`Text.py`)
@@ -74,6 +111,42 @@ pack = Access(
 
 # 处理请求
 result = Text.access(pack)
+# 返回: FinalVis(viewtype="text", payload={"text": "..."})
+```
+
+#### Express 渲染流程
+
+```python
+# 1. Port 返回 FinalVis
+from Port import Text
+finalvis = Text.access(pack)
+# Web: FinalVis(viewtype="text", payload={"text": "..."})
+# API: FinalVis(viewtype="text", value={...}, skip=True)
+
+# 2. 如果 skip=True，直接返回 value（用于 API）
+if finalvis.skip:
+    return finalvis.value  # 返回 JSON
+
+# 3. 否则，Express 包装渲染（用于 Web）
+from Express import wrap
+html_response = wrap(finalvis)  # 从 payload 提取数据并渲染
+```
+
+#### 数据流对比
+
+**旧方式（冗余）：**
+```python
+# 同时设置 value 和 payload，数据重复
+return FinalVis.of("text", value=content, payload={"text": content})
+```
+
+**新方式（清晰）：**
+```python
+# Web请求：只设置 payload
+return FinalVis.of("text", payload={"text": content})
+
+# API请求：只设置 value
+return FinalVis.of("text", value={"data": content}, skip=True)
 ```
 
 ### 2. Meta Port (`Meta.py`)
@@ -247,8 +320,47 @@ class Port:
             
         Returns:
             FinalVis: 处理结果
+            
+        推荐的返回方式：
+            # Web 请求（需要渲染）- 只设置 payload
+            return FinalVis.of(
+                viewtype="text",           # Express 渲染器类型
+                payload={"text": content}  # 渲染所需数据
+            )
+            
+            # API 请求（返回 JSON）- 只设置 value
+            return FinalVis.of(
+                viewtype="text",
+                value={"success": True, "data": data},
+                skip=True  # 跳过 Express 渲染
+            )
+            
+        注意：避免同时设置 value 和 payload，防止数据冗余
         """
         pass
+```
+
+#### 插件注册规范
+
+Port 模块使用插件机制自动注册，每个 Port 文件应导出 `registry()` 函数：
+
+```python
+def registry():
+    return {
+        "mime": "text",        # MIME 类型（字符串或列表）
+        "port": TextPort       # Port 类
+    }
+
+# 或者使用函数
+def registry():
+    def handler(pack):
+        # 处理逻辑
+        return FinalVis.of("text", result)
+    
+    return {
+        "mime": ["py", "exec"],
+        "handler": handler  # 可以是 port/handler/class
+    }
 ```
 
 ## 错误处理

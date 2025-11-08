@@ -40,7 +40,9 @@ class Text:
     def getByWeb(pack) -> FinalVis:
         """通过Web方式获取文本"""
         text_file = Text.get_data(pack.entry or pack.path)
-        return FinalVis.of("text", text_file.value.get("text", ""))
+        text_content = text_file.value.get("text", "")
+        # Web请求：只需要payload，Express渲染器会使用它
+        return FinalVis.of("text", payload={"text": text_content})
     
     @staticmethod
     def getByApi(pack) -> FinalVis:
