@@ -17,7 +17,7 @@ from typing import Dict, List, Optional, Any
 # 导入 entry 类型用于序列化检查
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from Common.types import entry
+from Common.base import entry
 
 try:
     import toml

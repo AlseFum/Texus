@@ -3,7 +3,7 @@ Assets 支持模块
 """
 import os
 import glob
-from util import FileResponse
+from Common.util import FileResponse
 
 # 全局变量存储扫描到的assets目录
 ASSETS_DIRS = []
@@ -61,3 +61,5 @@ def serve(path):
             return FileResponse(file_path, media_type=media_type)
     
     return {"error": "Asset not found"}
+
+

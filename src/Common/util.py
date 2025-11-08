@@ -12,3 +12,5 @@ def first_avail(*args):
         if arg is not None and arg is not "":
             return arg
     return None
+
+

@@ -9,7 +9,7 @@ authors = [{ name = "Alsefum" } ]
 dependencies = [
   "fastapi>=0.115.0",
   "uvicorn[standard]>=0.30.0",
-  "toml>=0.10.2",
+  "toml>=0.10.2"
 ]
 
 [tool.ruff]
@@ -23,8 +23,3 @@ ignore = ["E501"]
 [tool.black]
 line-length = 100
 target-version = ["py310"]
-
-[tool.uv.scripts]
-dev = "uvicorn --app-dir src server.main:app --reload --host 0.0.0.0 --port 8000"
-lint = "ruff check src"
-format = "ruff format src"

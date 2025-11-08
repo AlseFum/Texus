@@ -1,17 +1,17 @@
 # Express 模块
 
-Express 模块负责管理数据的呈现形式，提供多种用户界面和渲染方式。目前主要提供网页形式的用户界面。
+Express 模块负责管理数据的呈现形式，提供多种用户界面和渲染方式。目前主要提供网页形式的用户界面。现已支持插件机制，可按需扩展新的渲染器与 UI。
 
 ## 文件结构
 
 ```
 Express/
-├── __init__.py           # 主入口文件，提供渲染和包装功能
-├── text_edit/            # 文本编辑器界面 (Vue.js)
-│   ├── src/             # Vue 源码
-│   ├── dist/            # 构建后的静态文件
-│   └── package.json     # 前端依赖配置
-└── README.md            # 本文档
+├── __init__.py             # 主入口，提供渲染包装与插件注册加载
+├── text_edit/              # 文本编辑器界面 (Vue.js)
+│   ├── src/               # Vue 源码
+│   ├── dist/              # 构建后的静态文件
+│   └── package.json       # 前端依赖配置
+└── README.md              # 本文档
 ```
 
 ## 核心功能
@@ -113,7 +113,7 @@ npm run build    # 构建生产版本
 
 ```python
 from Express import wrap
-from Common.types import FinalVis
+from Common.base import FinalVis
 
 # 创建渲染对象
 content = FinalVis.of("text", "Hello World")
@@ -166,7 +166,7 @@ mimes["custom"] = myCustomRenderer
 1. 在 `Express/` 目录下创建新的子目录
 2. 开发前端应用（Vue/React/原生等）
 3. 构建到 `dist/` 目录
-4. 在 `__init__.py` 中注册渲染函数
+4. 在 `__init__.py` 或插件中注册渲染函数
 
 ## 开发指南
 
@@ -250,9 +250,68 @@ def useMyNewUI(v):
 
 ## 扩展
 
-Express 模块设计为可扩展的，可以轻松添加新的渲染方式和 UI 组件：
+Express 模块设计为可扩展的，可以通过“插件机制”轻松添加新的渲染方式和 UI 组件：
 
-1. **新的 MIME 类型** - 在 `mimes` 字典中注册
-2. **新的 UI 组件** - 创建独立的前端应用
-3. **自定义渲染器** - 实现特定的渲染逻辑
+1. **新的 MIME 类型** - 使用注册表 `register_renderer()` 或插件的 `register()` 注册
+2. **新的 UI 组件** - 创建独立的前端应用并在渲染器中引用其模板
+3. **自定义渲染器** - 实现特定的渲染逻辑并注册到特定 MIME
 4. **主题系统** - 支持多种视觉主题
+
+## 插件机制（新增）
+
+### 1. 插件能做什么
+- 注册新的 MIME 渲染器（如 `markdown`、`chart`、`diagram` 等）
+- 使用自身的模板、静态资源渲染内容
+- 不需要修改核心 `Express/__init__.py`
+
+### 2. 插件放哪
+- 项目内置：直接把插件 Python 文件放到 `Express/` 根目录（除 `__init__.py` 之外的 `*.py` 都会被自动当作插件）
+- 外部模块：编写独立 Python 包，在运行时通过环境变量加载
+
+### 3. 插件接口（新版）
+插件文件需导出一个 `registry()` 函数，返回一个字典：
+- 必填字段 `offix`：声明占用的 mime 名称（字符串）
+- 渲染函数字段（二选一）：`lambda` 或 `handler` 或 `render`，为可调用对象，入参为 `Renderee`，返回 HTML 字符串或 `HTMLResponse`
+
+在 `Express/my_markdown.py`：
+
+```python
+from Express import extract_str, HTMLResponse, get_template
+
+def registry():
+    def render_markdown(v):
+        text = extract_str(v)
+        # 这里省略 markdown 转 HTML 的实现，可引入第三方库
+        html = get_template("my_markdown")  # 或自定义模板路径
+        return html.replace("/*!insert*/", f'text = {text!r};')  # 返回字符串亦可
+    return {
+        "offix": "markdown",
+        "lambda": render_markdown  # 或使用 "handler"/"render" 作为键名
+    }
+
+```
+
+旧版仍然支持（兼容）：
+
+```python
+def register(registry):
+    registry.register_mime("markdown", lambda v: HTMLResponse(content="..."))
+```
+
+对应的前端资源（可选，用于模板）：
+```
+Express/my_markdown/dist/index.html
+```
+
+### 4. 如何加载插件
+- 自动加载：`Express/` 根目录下的每个 `*.py` 文件（排除 `__init__.py`）若导出 `registry()` 或 `register(registry)` 会在启动时自动加载
+- 环境变量加载外部插件：
+  - 设置 `EXPRESS_PLUGINS="pkg1,pkg2.subpkg"`，系统会尝试导入这些模块并调用其 `registry()` 或 `register(registry)`
+
+### 5. 运行时注册（非插件）
+你也可以在任意地方动态注册：
+
+```python
+from Express import register_renderer
+register_renderer("custom", my_renderer)
+```

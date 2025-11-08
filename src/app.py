@@ -1,9 +1,9 @@
-from util import Request, FileResponse, HTMLResponse, JSONResponse, FastAPI, Query, Cookie, CORSMiddleware
+from Common.util import Request, FileResponse, HTMLResponse, JSONResponse, FastAPI, Query, Cookie, CORSMiddleware
 from Database import getmime, init_backup_system, stop_backup_system
 from Express import wrap
 import Port
-from .assets_support import scan_assets_directories, serve
-from .translate import replaceByBody, request2access
+from server.assets_support import scan_assets_directories, serve
+from server.translate import replaceByBody, request2access
 
 app = FastAPI(title="Note Server", version="0.1.0")
 
@@ -18,17 +18,15 @@ async def startup_event():
         format="json"
     )
     
-    # 初始化定时任务管理器
-    from Port.Timer import TimerManager
-    timer_manager = TimerManager()
+    # 初始化定时任务管理器（模块级单例）
+    from Port.Timer import timer_manager
     timer_manager.start()
 
 # 关闭事件
 @app.on_event("shutdown")
 async def shutdown_event():
-     # 停止定时任务管理器
-    from Port.Timer import TimerManager
-    timer_manager = TimerManager()
+     # 停止定时任务管理器（模块级单例）
+    from Port.Timer import timer_manager
     timer_manager.stop()
     stop_backup_system()
     
@@ -41,10 +39,6 @@ app.add_middleware(
     allow_methods=["*"],  # 允许所有方法
     allow_headers=["*"],  # 允许所有请求头
 )
-#------------
-@app.get("/health")
-async def health_check():
-    return {"status": "ok"}
 #------------
 scan_assets_directories()
 @app.get("/assets/{path:path}")
@@ -75,16 +69,16 @@ async def visit(pack):
     if pack.entry == "mock":
         return pack
     return visit_internal(pack)
-from util import first_avail
+from Common.util import first_avail
 def visit_internal(pack):
-    mime = first_avail(pack.mime, getmime(pack.entry), "text")
-    Dispatcher = Port.dispatch(mime)
+    which = first_avail(getattr(pack, "suffix", None), getmime(pack.entry), "text")
+    Dispatcher = Port.dispatch(which)
     
     # 如果Dispatcher是Default（dispatch匹配失败）且mime不为空（说明有后缀），尝试Meta脚本处理
-    if Dispatcher == Port.Default and pack.mime:
+    if Dispatcher == Port.Default and getattr(pack, "suffix", None):
         # 直接查找mime对应的entry
         from Database import pub_get
-        if pub_get(pack.mime):  # 如果找到了对应的entry
+        if pub_get(pack.suffix):  # 如果找到了对应的entry
             # 使用Meta.accessScript处理
             output = Port.Meta.accessScript(pack)
             return output.value if output.skip else wrap(output)
@@ -92,3 +86,5 @@ def visit_internal(pack):
     
     output = Dispatcher.access(pack)
     return output.value if output.skip else wrap(output)
+
+

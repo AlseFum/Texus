@@ -1,7 +1,7 @@
 from .Meta import Meta
 from .Text import Text
 from .Exec import Exec
-from Common.types import FinalVis
+from Common.base import FinalVis
 from Database import pub_get
 class Port:
     def access(pack):

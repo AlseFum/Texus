@@ -1,17 +1,28 @@
 import os
-from Common.types import FinalVis,Renderee
-from util import HTMLResponse
+import importlib
+from typing import Callable, Dict, Optional, Any
+from Common.base import Renderee
+from Common.util import HTMLResponse
 
-def useRaw(v):
-    content = extract_str(v)
-    js_content = content.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r')
-    
-    return HTMLResponse(content=RAW_HTML_TEMPLATE.replace("/*!insert*/", f'text = "{js_content}";'))
-def useNote(v):
-    html = get_template("text_edit")
-    js_content = extract_str(v).replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r')
-    js_assignment = f'var inlineContent="{js_content}";'    
-    return HTMLResponse(content=html.replace("/*!insert*/", js_assignment))
+def useRaw(v: Renderee):
+    """
+    兜底渲染：以 raw 模板渲染纯文本。
+    若 raw 插件存在，会覆盖该渲染器。
+    """
+    payload = getattr(v, "payload", None)
+    # 内容与标题（无需异常分支）
+    if isinstance(payload, dict):
+        content = str(payload.get("text", "")) if "text" in payload else extract_str(v)
+        title_raw = str(payload.get("title", "") or "")
+    else:
+        content = extract_str(v)
+        title_raw = str(getattr(v, "title", "") or (v.value.get("title", "") if hasattr(v, "value") and isinstance(v.value, dict) else ""))
+    # 转义注入
+    to_js = lambda s: s.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r')
+    html = get_template("raw")
+    return HTMLResponse(content=html.replace("/*!insert*/", f'var text = "{to_js(content)}"; var title = "{to_js(title_raw)}";'))
+
+# note/text 将改由插件提供（见 note.py / text.py），此处不再内置实现
 
 def extract_str(v):
     # 优先使用 to_raw 方法，其次 value 属性
@@ -21,54 +32,113 @@ def extract_str(v):
         if hasattr(v, "value"):
             return str(v.value)
     return ""
-def get_template(where:str):
-  html=""
-  template_path = os.path.join(os.path.dirname(__file__), where+"/dist/index.html")
-  try:
-      with open(template_path, "r", encoding="utf-8") as f:
-          html = f.read()
-  except FileNotFoundError:
-      html = RAW_HTML_TEMPLATE
-  return html
+def get_template(where: str) -> str:
+    """
+    读取指定模板目录下的 dist/index.html。
+    若不存在则回退到极简占位模板（仅保底，不建议依赖）。
+    """
+    base_dir = os.path.dirname(__file__)
+    template_path = os.path.join(base_dir, where, "dist", "index.html")
+    # 基于 mtime 的简易缓存
+    global TEMPLATE_CACHE
+    if 'TEMPLATE_CACHE' not in globals():
+        TEMPLATE_CACHE = {}
+    # 极简占位模板：避免返回空串导致注入失败
+    minimal_fallback = (
+        '<!doctype html><html><head><meta charset="utf-8"><title>-</title></head>'
+        '<body><pre id="content"></pre><script>/*!insert*/'
+        'document.getElementById("content").textContent=(typeof text!=="undefined"?text:"");'
+        "</script></body></html>"
+    )
+    if os.path.exists(template_path):
+        mtime = os.path.getmtime(template_path)
+        cached = TEMPLATE_CACHE.get(where)
+        if cached and cached.get("mtime") == mtime:
+            return cached.get("html", minimal_fallback)
+        with open(template_path, "r", encoding="utf-8") as f:
+            html = f.read()
+        TEMPLATE_CACHE[where] = {"path": template_path, "mtime": mtime, "html": html}
+        return html
+    else:
+        return minimal_fallback
 
-RAW_HTML_TEMPLATE = """<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>-</title>
-  <style>
-    html, body { height: 100%; }
-    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; color: #111; background: #fafafa; }
-    .container { max-width: 720px; margin: 0 auto; padding: 24px; }
-    .card { background: #fff; border: 1px solid #eaeaea; border-radius: 12px; padding: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
-    .title { margin: 0 0 12px; font-size: 18px; font-weight: 600; color: #222; }
-    .text { white-space: pre-wrap; word-break: break-word; color: #333; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="card">
-      <h1 class="title"></h1>
-      <div id="content" class="text"></div>
-    </div>
-  </div>
-  <script>
-    const area=document.getElementById("content");
-    let text = "Oops, nothing here";
-    /*!insert*/
-    area.innerHTML=text;
-  </script>
-</body>
-</html>"""
+#
 
-mimes={
+# 视图渲染器注册表（以 viewtype 为键）
+renderers: Dict[str, Callable[[Renderee], HTMLResponse]] = {}
+# 仅保留 raw 的默认渲染，其它 viewtype 由插件或外部注册
+renderers["raw"] = useRaw
 
-}
-mimes["note"]=useNote
-mimes["text"]=useNote
-mimes["raw"]=useRaw
+class RendererRegistry:
+    def __init__(self, initial: Optional[Dict[str, Callable[[Renderee], HTMLResponse]]] = None):
+        self._renderers = renderers if initial is None else initial
+    def register_viewtype(self, viewtype: str, renderer: Callable[[Renderee], HTMLResponse]):
+        if not viewtype or not callable(renderer):
+            raise ValueError("Invalid viewtype or renderer")
+        self._renderers[viewtype] = renderer
+    def get_renderer(self, viewtype: str) -> Callable[[Renderee], HTMLResponse]:
+        return self._renderers.get(viewtype, useRaw)
+
+registry = RendererRegistry()
+
+def register_renderer(viewtype: str, renderer: Callable[[Renderee], HTMLResponse]):
+    registry.register_viewtype(viewtype, renderer)
+
 def wrap(v: Renderee):
-    if v.mime in mimes:
-        return mimes[v.mime](v)
-    return useRaw(v)
+    key = (
+        getattr(v, "viewtype", None)
+        or getattr(v, "mime", "")
+        or getattr(v, "suffix", None)
+        or ""
+    )
+    renderer = registry.get_renderer(key)
+    return renderer(v)
+
+def _load_plugins_from_express_root():
+    base_dir = os.path.dirname(__file__)
+    package_name = __name__
+    for fname in os.listdir(base_dir):
+        if not fname.endswith(".py"):
+            continue
+        if fname == "__init__.py":
+            continue
+        module_name = f"{package_name}.{fname[:-3]}"
+        mod = importlib.import_module(module_name)
+        if hasattr(mod, "registry") and callable(getattr(mod, "registry")):
+            info = mod.registry()
+            _register_plugin_dict(info)
+
+def _register_plugin_dict(info: Dict[str, Any]):
+    """
+    按约定从插件信息中注册渲染器：
+    - 必须提供 suffix（字符串或字符串数组）
+    - 必须提供可调用的 lambda/handler/render 之一
+    """
+    if not isinstance(info, dict):
+        return
+    targets = info.get("suffix")
+    func = info.get("lambda") or info.get("handler") or info.get("render")
+    if not func or not callable(func) or targets is None:
+        return
+    def renderer(v: Renderee):
+        return func(v)
+    if isinstance(targets, (list, tuple)):
+        for t in targets:
+            if isinstance(t, str) and t:
+                register_renderer(t, renderer)
+    elif isinstance(targets, str) and targets:
+        register_renderer(targets, renderer)
+
+
+def load_plugins():
+    _load_plugins_from_express_root()
+    env = os.environ.get("EXPRESS_PLUGINS", "").strip()
+    if env:
+        for mod_name in [x.strip() for x in env.split(",") if x.strip()]:
+            mod = importlib.import_module(mod_name)
+            if hasattr(mod, "registry") and callable(getattr(mod, "registry")):
+                info = mod.registry()
+                _register_plugin_dict(info)
+
+# 模块导入时自动加载插件
+load_plugins()

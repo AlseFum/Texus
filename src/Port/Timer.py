@@ -1,5 +1,5 @@
 from Database import pub_get, pub_set, Table
-from Common.types import FinalVis, entry
+from Common.base import FinalVis, entry
 from datetime import datetime
 import threading
 import time
@@ -251,32 +251,11 @@ class TimerEntry(entry):
         return '\n'.join(lines).strip()
 
 class TimerManager:
-    """定时任务管理器，负责管理所有定时任务的调度和执行
-    
-    TimerManager是一个单例，每秒扫描TIMER表中的.timer条目
-    随机选择一个条目执行其中的脚本列表
-    """
-    
-    _instance = None
-    _lock = threading.Lock()
-    
-    def __new__(cls):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super(TimerManager, cls).__new__(cls)
-                    cls._instance._initialized = False
-        return cls._instance
-    
+    """定时任务管理器，负责管理所有定时任务的调度和执行"""
     def __init__(self):
-        if self._initialized:
-            return
-        
-        self.running = False  # 任务调度器是否运行
-        self.scheduler_thread = None  # 调度器线程
-        self._state_lock = threading.Lock()  # 状态锁
-        self._initialized = True
-        
+        self.running = False
+        self.scheduler_thread = None
+        self._state_lock = threading.Lock()
     
     def start(self):
         """启动定时任务调度器"""
@@ -449,8 +428,11 @@ class TimerManager:
         elif output:
             print(f"内联脚本 (from {entry_name}) 输出:\n{output}")
 
+# 模块级单例实例
+timer_manager = TimerManager()
 
-from Common.types import FinalVis
+
+from Common.base import FinalVis
 from .Text import Text, ShadowPort
 
 class Timer(ShadowPort):
@@ -519,7 +501,7 @@ class Timer(ShadowPort):
         pub_data = pub_get(entry_key)
         
         # 判断是否是 timer entry
-        is_timer = pub_data and pack.mime == "timer"
+        is_timer = pub_data and getattr(pack, "suffix", None) == "timer"
         # 如果已经是 timer entry，更新它
         if is_timer:
             # 从文本内容创建 TimerEntry

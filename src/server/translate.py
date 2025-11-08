@@ -1,6 +1,5 @@
-from util import Request
-from Common.types import Access, ByType
-from Database import getmime
+from Common.util import Request
+from Common.base import Access
 
 
 def detect_by(request: Request):
@@ -12,9 +11,9 @@ def detect_by(request: Request):
     
     # 如果 query 中明确指定了 from 参数，优先使用
     if from_param == "api":
-        return ByType.API
+        return "api"
     elif from_param == "web":
-        return ByType.WEB
+        return "web"
     
     # 如果没有明确指定，则根据 User-Agent 等判断
     user_agent = request.headers.get("user-agent", "").lower()
@@ -81,15 +80,15 @@ def detect_by(request: Request):
     
     # 判断逻辑
     if any(api_indicators):
-        return ByType.API
+        return "api"
     elif any(web_indicators):
-        return ByType.WEB
+        return "web"
     else:
         # 默认情况，可能是未知的客户端
         if "json" in accept or "json" in content_type:
-            return ByType.API
+            return "api"
         else:
-            return ByType.API
+            return "api"
 
 
 def detect_who(request: Request):
@@ -224,20 +223,16 @@ def request2access(
         primary = ""
         path_tags = []
     
-    # 确定 entry 和 mime
+    # 确定 entry 和 suffix（URL 后缀）
     if entry is None:
-        # 从 primary 中分离 entry 和 mime（如果有扩展名）
+        # 从 primary 中分离 entry 和 suffix（如果有扩展名）
         if "." in primary:
-            entry, primary_mime = primary.rsplit(".", 1)
+            entry, primary_suffix = primary.rsplit(".", 1)
         else:
             entry = primary
-            primary_mime = ""
+            primary_suffix = ""
     else:
-        primary_mime = ""
-    
-    # 确定 mime 类型
-    if mime is None:
-        mime = primary_mime or getmime(entry) or "text"
+        primary_suffix = ""
     
     # 合并 query 参数
     # 1. 先获取 URL 查询参数
@@ -259,12 +254,12 @@ def request2access(
     
     return Access(
         path=path,
-        mime=mime,
         entry=entry or "index",  # 如果没有 entry，默认为 "index"
         who=who,
         by=by if hasattr(by, 'value') else str(by),
         query=query_dict,
-        cookies=dict(request.cookies)
+        cookies=dict(request.cookies),
+        suffix=primary_suffix
     )
 
 
@@ -309,3 +304,5 @@ async def replaceByBody(pack, body_or_request):
     # pack 没有body，不要设置
     
     return pack
+
+

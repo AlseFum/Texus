@@ -1,5 +1,5 @@
 from Database import pub_get, pub_set, Table
-from Common.types import FinalVis, entry
+from Common.base import FinalVis, entry
 from datetime import datetime
 from .Text import Text, ShadowPort
 
@@ -37,7 +37,7 @@ class Menu(ShadowPort):
     @staticmethod
     def _schema_for(base_key: str) -> dict:
         fields = []
-        pub_table = Table.of("PUB")
+        pub_table = Table.of("main")
 
         # 遍历 PUB 中以 base_key. 开头的键，自动生成字段
         for k, v in getattr(pub_table, "inner", {}).items():

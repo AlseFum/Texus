@@ -1,7 +1,7 @@
 from typing import Dict, Any, Tuple, Optional
-from util import first_valid
+from Common.util import first_valid
 from Database import pub_get, pub_set, Table
-from Common.types import FinalVis, entry
+from Common.base import FinalVis, entry
 from Common import execute_script
 from datetime import datetime
 

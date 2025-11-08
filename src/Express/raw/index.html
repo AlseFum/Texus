@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Raw</title>
+    <script>
+      /*!insert*/
+      
+      // 运行时后端会注入：var text="..."; var title="...";
+      if (typeof window !== 'undefined' && typeof text !== 'undefined') {
+        window.__RAW_TEXT__ = String(text);
+      }
+      if (typeof window !== 'undefined' && typeof title !== 'undefined') {
+        window.__RAW_TITLE__ = String(title);
+      }
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+  </html>
+
+

@@ -1,4 +1,4 @@
-from Common.types import FinalVis, entry
+from Common.base import FinalVis, entry
 from Common import execute_script
 from Database import pub_get
 from .Text import Text
@@ -216,10 +216,10 @@ Manual={
 class Meta(Text):
     @staticmethod
     def accessScript(pack) -> FinalVis:
-        if(pack.mime in Manual):
-            return FinalVis.of("raw", Manual[pack.mime])
+        if(getattr(pack, "suffix", None) in Manual):
+            return FinalVis.of("raw", Manual[pack.suffix])
         #abracadabra.xxx, xxx is the meta
-        script_falsemeta = pub_get(pack.mime)
+        script_falsemeta = pub_get(getattr(pack, "suffix", None))
         
         # 获取脚本内容
         metaHandler = ""

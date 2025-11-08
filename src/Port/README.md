@@ -59,7 +59,7 @@ port = dispatch("raw")     # 返回 Raw Port
 
 ```python
 from Port import Text
-from Common.types import Access
+from Common.base import Access
 
 # 创建访问包
 pack = Access(
@@ -215,7 +215,7 @@ return output.value if output.skip else wrap(output)
 ### 创建自定义 Port
 
 ```python
-from Common.types import FinalVis
+from Common.base import FinalVis
 
 class MyCustomPort:
     @staticmethod

@@ -37,7 +37,7 @@ uv venv
 uv sync
 
 # 启动服务器
-uv run uvicorn --app-dir src server.main:app --reload --host 0.0.0.0 --port 7123
+uv run uvicorn --app-dir src app:app --reload --host 0.0.0.0 --port 7123
 ```
 
 服务器将在 `http://localhost:7123` 启动。

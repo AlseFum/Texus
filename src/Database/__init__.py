@@ -1,21 +1,20 @@
-from Common.types import entry
+from Common.base import entry
 from .backup import BackupManager
 from .table import Table
 from datetime import datetime
 import re
+from .api import get as main_get, set as main_set, exists as main_exists, delete as main_delete, list_keys as main_list_keys
 
 tables={}
 backup_manager = None
 
 def pub_get(entry_key):
     """获取公共条目"""
-    pub_table = Table.of("PUB")
-    return pub_table.get(entry_key, None)
+    return main_get(entry_key, "main")
 
 def pub_set(entry_key, value):
     """设置公共条目"""
-    pub_table = Table.of("PUB")
-    return pub_table.set(entry_key, value)
+    return main_set(entry_key, value, "main")
 
 def hid_set(entry_key, value):
     """设置私有条目"""
@@ -75,8 +74,7 @@ class vmAPI:
     
     def list_keys(self, pattern: str = None) -> list:
         """列出所有键，可选择模式匹配"""
-        pub_table = Table.of("PUB")
-        all_keys = list(pub_table.inner.keys()) if hasattr(pub_table, 'inner') else []
+        all_keys = main_list_keys("main")
         
         if pattern:
             # 简单的通配符匹配
@@ -98,14 +96,9 @@ class vmAPI:
     def delete(self, key: str) -> bool:
         """删除entry"""
         try:
-            pub_table = Table.of("PUB")
-            if hasattr(pub_table, 'inner') and key in pub_table.inner:
-                del pub_table.inner[key]
-                self.operations.append(f"DELETE {key}")
-                return True
-            else:
-                self.operations.append(f"DELETE {key} NOT_FOUND")
-                return False
+            ok = main_delete(key, "main")
+            self.operations.append(f"DELETE {key}" + ("" if ok else " NOT_FOUND"))
+            return ok
         except Exception as e:
             self.operations.append(f"DELETE {key} FAILED: {e}")
             return False
@@ -127,14 +120,14 @@ class vmAPI:
             return False
 
 # 初始化一些基础数据
-Table.of("PUB").set("a", entry(mime="text", value={
+Table.of("main").set("a", entry(mime="text", value={
     "text": "text text", 
     "lastSavedTime": datetime.now()
 }))
 
 # 加载 Gen 测试用例
 from .test_cases import load_test_cases
-# load_test_cases(Table.of("PUB"))
+# load_test_cases(Table.of("main"))
 
 def init_backup_system(backup_dir: str = ".backup", max_backups: int = 10, 
                       backup_interval: int = 600, format: str = "json"):

@@ -22,7 +22,7 @@
 
 4. **运行开发服务器**:
    ```bash
-   uv run uvicorn --app-dir src server.main:app --reload --host 0.0.0.0 --port 7123
+   uv run uvicorn --app-dir src app:app --reload --host 0.0.0.0 --port 7123
    ```
 
 ## 代码规范
@@ -66,7 +66,7 @@ Closes #123
 
 1. **创建 Port 类**:
    ```python
-   from Common.types import FinalVis
+   from Common.base import FinalVis
    from .Text import Text
    
    class MyPort(Text):
