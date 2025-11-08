@@ -1,18 +1,47 @@
-## 变更内容
+# Description
 
-- 简述本 PR 做了什么
+Please include a summary of the changes and the related issue.
 
-## 相关 Issue
+Fixes # (issue)
 
-- Close #
+## Type of Change
 
-## 自测清单
+- [ ] 🐛 Bug fix (non-breaking change which fixes an issue)
+- [ ] ✨ New feature (non-breaking change which adds functionality)
+- [ ] 💥 Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] 📝 Documentation update
+- [ ] 🎨 Style/UI update (formatting, local variables)
+- [ ] ♻️ Code refactor (no functional changes)
+- [ ] ⚡ Performance improvement
+- [ ] ✅ Test update
 
-- [ ] 本地通过 `uv run ruff check src`
-- [ ] 本地通过 `uv run ruff format --check src`
-- [ ] 如涉及前端，已在 `src/Express/menu` 构建通过
-
-## 其他说明
+## Changes Made
 
 - 
+- 
+- 
 
+## Testing
+
+Please describe the tests that you ran to verify your changes:
+
+- [ ] Test A
+- [ ] Test B
+
+## Checklist
+
+- [ ] My code follows the style guidelines of this project
+- [ ] I have performed a self-review of my own code
+- [ ] I have commented my code, particularly in hard-to-understand areas
+- [ ] I have made corresponding changes to the documentation
+- [ ] My changes generate no new warnings
+- [ ] I have added tests that prove my fix is effective or that my feature works
+- [ ] New and existing unit tests pass locally with my changes
+
+## Screenshots (if applicable)
+
+Add screenshots here to help explain your changes.
+
+## Additional Notes
+
+Add any other context about the PR here.

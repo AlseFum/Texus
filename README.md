@@ -1,95 +1,304 @@
 # Texus
 
-**Runnable Notepad** - 一个功能强大的可执行记事本系统，支持文本处理、脚本执行、内容生成和定时任务管理。
+<div align="center">
+
+**🚀 A Runnable Notepad — 让你的文本能思考、能执行、能生成**
 
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
-[![CI](https://github.com/<your-org>/texus/actions/workflows/ci.yml/badge.svg)](https://github.com/<your-org>/texus/actions)
 
-## 目录
+[English](README.md) | [中文文档](README_ZH.md)
 
-- [特性](#特性)
-- [文档](#文档)
-- [快速开始](#快速开始)
+</div>
 
-## 特性
+---
 
-### 🚀 核心功能
+## ✨ What is Texus?
 
-- **文本处理 (Text Port)**: 完整的文本读写和 API 访问功能
-- **脚本执行 (Py Port)**: 安全的 Python 脚本执行环境，支持数据库操作
-- **内容生成 (Gen Port)**: 基于模板的随机内容生成器
-- **Meta 脚本 (Meta Port)**: 数据转换和处理脚本
-- **定时任务 (Timer Port)**: 定时任务管理和随机脚本执行
+Texus 是一个革新性的**可执行记事本系统**，它不仅仅是一个文本编辑器，而是一个将**文本、脚本和数据**无缝融合的强大平台。
 
-### 💾 数据管理
+**核心理念：** 你写下的不只是文字，而是可以运行的逻辑。
 
-- **轻量级数据库**: 键值存储系统，支持多表管理
-- **自动备份**: 定期备份系统，支持恢复功能
-- **MIME 类型管理**: 自动识别和关联文件类型
+```
+┌─────────────┐      ┌──────────────┐      ┌────────────┐
+│  写入文本    │  →  │  执行脚本    │  →  │  生成内容  │
+│  .text      │      │  .py .meta   │      │  .gen      │
+└─────────────┘      └──────────────┘      └────────────┘
+```
 
-### 🎨 用户界面
+### 🎯 核心特性
 
-- **Web 界面**: 基于 Vue.js 的现代化文本编辑器
-- **API 接口**: 完整的 RESTful API 支持
-- **静态资源**: 自动扫描和提供静态资源
+#### 📝 Text Port - 智能文本管理
+不只是简单的文本存储，支持版本追踪、时间戳和结构化数据。
 
-### 🔧 技术特点
+```python
+# 访问文本
+GET /myfile.text
 
-- **模块化架构**: 基于 Port 系统的灵活扩展机制
-- **安全执行**: 受限的脚本执行环境
-- **异步处理**: 基于 FastAPI 的高性能异步框架
-- **智能缓存**: 自动缓存解析结果，提高性能
+# 通过API写入
+POST /myfile?op=set&content=Hello
 
-## 文档
+# 获取结构化数据
+GET /api/myfile  # 返回 {"text": "...", "lastSavedTime": "..."}
+```
 
-详细的文档请查看 [docs](docs/) 目录：
+#### ⚡ Exec Port - 安全脚本执行
+在受控环境中执行Python脚本，专注于数据操作而非系统访问。
 
-- 📚 [快速开始](docs/quick-start.md) - 安装和启动指南
-- 🎯 [入门指南](docs/getting-started.md) - 基本概念和第一个示例
-- 📖 [教程](docs/tutorial.md) - 完整的使用教程
-- 🔌 [API 文档](docs/api.md) - 完整的 API 参考
-- 🤝 [贡献指南](docs/contributing.md) - 如何参与项目开发
+```python
+# script.py
+db.set("counter", db.get("counter") + 1)
+print(f"Counter: {db.get('counter')}")
+```
 
-## 快速开始
+**特点：**
+- 🔒 安全沙箱 - 限制系统访问
+- 📊 数据库API - 便捷的数据操作
+- 📝 操作追踪 - 记录所有数据变更
 
-### 前置要求
+#### 🎲 Gen Port - 强大的内容生成器
+基于模板的随机内容生成，支持变量、权重、条件和表达式。
 
-- Python 3.10 或更高版本
-- [uv](https://github.com/astral-sh/uv) - Python 包管理器
+```
+# story.gen
+main
+    今天是#weather的一天
+    我遇到了#character
 
-### 安装和启动
+weather
+    ^3 晴朗     # 权重为3
+    ^2 多云
+    下雨
+
+character
+    一只猫
+    一位老人
+    神秘的陌生人
+```
+
+**每次访问 `/story.gen` 都会生成不同的随机内容！**
+
+**高级特性：**
+- 🎯 权重系统 - `^n` 控制选择概率
+- 🔢 表达式计算 - `#[x + y]`
+- 🔄 循环生成 - `#*5`
+- 💾 变量支持 - `$count`
+- 🎨 条件分支 - 基于条件的内容生成
+
+#### 🔄 Meta Port - 数据转换管道
+将一个数据源通过脚本转换为另一种形式。
+
+```python
+# uppercase.meta
+result = input_data.upper()
+print(result)
+
+# 访问 /mytext.uppercase
+# 输入: "hello world"
+# 输出: "HELLO WORLD"
+```
+
+#### ⏰ Timer Port - 智能定时任务
+管理定时脚本，支持随机执行和调度控制。
+
+```
+# backup.timer
+script1.py
+script2.py
++ db.set("last_run", "2024-01-01")  # 内联脚本
+```
+
+---
+
+## 🏗️ 架构设计
+
+Texus 采用模块化、可扩展的架构：
+
+```
+┌─────────────────────────────────────────┐
+│           Web Interface (Vue.js)        │
+│         Express - Rendering Layer       │
+├─────────────────────────────────────────┤
+│              Port System                │
+│  ┌──────┬──────┬──────┬──────┬──────┐ │
+│  │ Text │ Exec │ Gen  │ Meta │Timer │ │
+│  └──────┴──────┴──────┴──────┴──────┘ │
+├─────────────────────────────────────────┤
+│         Database (Key-Value Store)      │
+│           + Auto Backup System          │
+└─────────────────────────────────────────┘
+```
+
+### 🔌 插件化设计
+
+每个Port都是一个独立的插件，通过统一的`registry()`接口注册：
+
+```python
+def registry():
+    return {
+        "mime": "custom",
+        "port": CustomPort
+    }
+```
+
+---
+
+## 🚀 快速开始
+
+### 安装
 
 ```bash
-# 安装 uv
+# 1. 安装 uv (推荐的Python包管理器)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# 克隆项目
-git clone <repository-url>
+# 2. 克隆项目
+git clone https://github.com/your-org/texus.git
 cd texus
 
-# 安装依赖并启动开发服务器（uv 脚本）
+# 3. 安装依赖并启动
 uv sync
 uv run dev
 ```
 
-服务器默认在 `http://localhost:8000` 启动（uv run dev）。
+服务器将在 `http://localhost:8000` 启动 🎉
 
-#### 前端（menu）构建
+### 5分钟入门教程
+
+#### 1️⃣ 创建第一个文本文件
 
 ```bash
-cd src/Express/menu
-npm install
-npm run build
+# 通过API创建
+curl -X POST "http://localhost:8000/hello?op=set&content=Hello%20Texus"
+
+# 访问
+curl http://localhost:8000/hello.text
 ```
 
-构建产物将输出到 `src/Express/menu/dist/`，后端会自动提供 `/assets/*` 静态资源并渲染 `.menu` 页面。
+#### 2️⃣ 编写第一个脚本
 
-详细说明请查看 [快速开始指南](docs/quick-start.md)。
+创建 `counter.py`:
+```python
+count = db.get("count") or 0
+count += 1
+db.set("count", count)
+print(f"访问次数: {count}")
+```
+
+访问 `/counter.py` 每次都会增加计数！
+
+#### 3️⃣ 生成随机内容
+
+创建 `greeting.gen`:
+```
+main
+    #greeting, #name!
+
+greeting
+    你好
+    Hi
+    Hello
+
+name
+    朋友
+    世界
+    Texus
+```
+
+每次访问 `/greeting.gen` 得到不同的问候语！
 
 ---
 
-**作者**: Alsefum  
-**版本**: 1.0.0  
-**许可证**: MIT
+## 📖 使用场景
+
+### 🤖 动态内容生成
+- 随机故事/对话生成
+- 游戏文案生成
+- 测试数据生成
+
+### 📊 数据处理流水线
+- 文本转换和格式化
+- 数据提取和分析
+- API聚合和转发
+
+### ⚙️ 自动化任务
+- 定时数据采集
+- 定期报告生成
+- 监控和告警
+
+### 📝 知识管理
+- 个人笔记系统
+- 代码片段管理
+- 文档自动化
+
+---
+
+## 🎯 核心优势
+
+| 特性 | Texus | 传统笔记 | Jupyter |
+|------|-------|----------|---------|
+| 文本编辑 | ✅ | ✅ | ✅ |
+| 脚本执行 | ✅ | ❌ | ✅ |
+| 内容生成 | ✅ | ❌ | ❌ |
+| 轻量级 | ✅ | ✅ | ❌ |
+| Web界面 | ✅ | ⚠️ | ✅ |
+| 数据持久化 | ✅ | ⚠️ | ❌ |
+| 定时任务 | ✅ | ❌ | ❌ |
+| 插件扩展 | ✅ | ❌ | ✅ |
+
+---
+
+## 📚 文档
+
+- 📖 [完整文档](docs/) - 详细的使用指南
+- 🎯 [快速开始](docs/quick-start.md) - 5分钟上手
+- 🔌 [API文档](docs/api.md) - REST API参考
+- 🎨 [Gen语法](src/Port/Gen/Syntax.md) - 生成器语法指南
+- 🤝 [贡献指南](docs/contributing.md) - 参与开发
+
+---
+
+## 🛠️ 技术栈
+
+- **后端**: FastAPI + Python 3.10+
+- **前端**: Vue.js 3 + Vite
+- **数据库**: 自研轻量级Key-Value存储
+- **包管理**: uv (极速Python包管理器)
+
+---
+
+## 🤝 贡献
+
+欢迎贡献代码、报告问题或提出建议！
+
+1. Fork 本仓库
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启 Pull Request
+
+查看 [贡献指南](docs/contributing.md) 了解更多。
+
+---
+
+## 📜 许可证
+
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
+
+---
+
+## 🌟 Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=your-org/texus&type=Date)](https://star-history.com/#your-org/texus&Date)
+
+---
+
+<div align="center">
+
+**[⬆ 回到顶部](#texus)**
+
+由 ❤️ 和 ☕ 驱动 | Made by [Alsefum](https://github.com/Alsefum)
+
+如果这个项目对你有帮助，请给个 ⭐️ Star！
+
+</div>
