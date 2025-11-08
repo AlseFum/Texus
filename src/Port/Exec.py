@@ -1,6 +1,6 @@
 from typing import Dict, Any, Tuple, Optional
 from Common.util import first_valid
-from Database import pub_get, pub_set, Table
+from Database import Table
 from Common.base import FinalVis, entry
 from Common import execute_script
 from datetime import datetime
@@ -24,7 +24,8 @@ class Exec:
         script_content = first_valid(pack.query.get('script', None), "")
         if not script_content:
             # 从entry中获取脚本
-            script_entry = pub_get(pack.entry)
+            main_table = Table.of("main")
+            script_entry = main_table.get(pack.entry)
             if isinstance(script_entry, entry):
                 script_content = script_entry.value.get("text", "")
             else:
@@ -66,3 +67,10 @@ class Exec:
             else:
                 # Web 请求：直接用 raw 表达错误信息
                 return FinalVis.of("raw", f"Script execution error: {output}")
+
+# 插件注册函数
+def registry():
+    return {
+        "mime": ["py", "exec"],
+        "port": Exec
+    }

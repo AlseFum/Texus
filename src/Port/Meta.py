@@ -1,6 +1,6 @@
 from Common.base import FinalVis, entry
 from Common import execute_script
-from Database import pub_get
+from Database import Table
 from .Text import Text
 
 # 脚本模板
@@ -213,13 +213,21 @@ Manual={
     "meta":META_MANUAL,
     "timer":TIMER_MANUAL,
 }
-class Meta(Text):
+class Meta:
+    @staticmethod
+    def access(pack) -> FinalVis:
+        """Meta Port 主访问方法"""
+        return Meta.accessScript(pack)
+    
     @staticmethod
     def accessScript(pack) -> FinalVis:
         if(getattr(pack, "suffix", None) in Manual):
             return FinalVis.of("raw", Manual[pack.suffix])
+        
+        main_table = Table.of("main")
+        
         #abracadabra.xxx, xxx is the meta
-        script_falsemeta = pub_get(getattr(pack, "suffix", None))
+        script_falsemeta = main_table.get(getattr(pack, "suffix", None))
         
         # 获取脚本内容
         metaHandler = ""
@@ -229,7 +237,7 @@ class Meta(Text):
             metaHandler = str(script_falsemeta or "")
         
         # 获取源数据（pack.entry就是源数据）
-        source_data = pub_get(pack.entry)
+        source_data = main_table.get(pack.entry)
         input_data = ""
         if isinstance(source_data, entry):
             input_data = source_data.value.get("text", "")
@@ -266,3 +274,10 @@ class Meta(Text):
                 return FinalVis.of("text", debug_info)
         else:
             return FinalVis.of("text", f"Script execution error: {output}")
+
+# 插件注册函数
+def registry():
+    return {
+        "mime": "meta",
+        "port": Meta
+    }

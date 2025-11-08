@@ -3,52 +3,32 @@ from .backup import BackupManager
 from .table import Table
 from datetime import datetime
 import re
-from .api import get as main_get, set as main_set, exists as main_exists, delete as main_delete, list_keys as main_list_keys
 
-tables={}
+tables = {}
 backup_manager = None
 
-def pub_get(entry_key):
-    """获取公共条目"""
-    return main_get(entry_key, "main")
+# 日志
+from Common.logger import get_logger
+logger = get_logger("database")
 
-def pub_set(entry_key, value):
-    """设置公共条目"""
-    return main_set(entry_key, value, "main")
-
-def hid_set(entry_key, value):
-    """设置私有条目"""
-    hid_table = Table.of("HID")
-    return hid_table.set(entry_key, value)
-
-def hid_get(entry_key):
-    """获取私有条目"""
-    hid_table = Table.of("HID")
-    return hid_table.get(entry_key, None)
-
-def claim(path,mime):
-    """声明MIME类型"""
-    mime_table = Table.of("MIME")
-    if mime_table.get(path) is None:
-        mime_table.set(path, mime)
-        return True
-    else:
-        return False
-
-def getmime(path):
-    """获取MIME类型"""
-    mime_table = Table.of("MIME")
-    return mime_table.get(path, None)
+def getmime(entry_key):
+    """从主表获取 entry 的 MIME 类型"""
+    main_table = Table.of("main")
+    data = main_table.get(entry_key)
+    if isinstance(data, entry):
+        return data.mime
+    return None
 
 class vmAPI:
-    """为用户脚本提供的数据库操作API"""
+    """为用户脚本提供的数据库操作API - 直接操作主表"""
     
     def __init__(self):
         self.operations = []  # 记录操作历史
+        self.main = Table.of("main")
     
     def get(self, key: str) -> entry:
         """获取entry对象"""
-        result = pub_get(key)
+        result = self.main.get(key)
         self.operations.append(f"GET {key}")
         if isinstance(result, entry):
             return result
@@ -65,7 +45,7 @@ class vmAPI:
                 "lastSavedTime": datetime.now()
             }
             new_entry = entry(mime=mime, value=file_data)
-            pub_set(key, new_entry)
+            self.main.set(key, new_entry)
             self.operations.append(f"SET {key}")
             return True
         except Exception as e:
@@ -74,7 +54,7 @@ class vmAPI:
     
     def list_keys(self, pattern: str = None) -> list:
         """列出所有键，可选择模式匹配"""
-        all_keys = main_list_keys("main")
+        all_keys = list(self.main.inner.keys())
         
         if pattern:
             # 简单的通配符匹配
@@ -89,16 +69,21 @@ class vmAPI:
     
     def exists(self, key: str) -> bool:
         """检查键是否存在"""
-        result = pub_get(key) is not None
+        result = self.main.get(key) is not None
         self.operations.append(f"EXISTS {key} -> {result}")
         return result
     
     def delete(self, key: str) -> bool:
         """删除entry"""
         try:
-            ok = main_delete(key, "main")
-            self.operations.append(f"DELETE {key}" + ("" if ok else " NOT_FOUND"))
-            return ok
+            if key in self.main.inner:
+                del self.main.inner[key]
+                self.main.sync()
+                self.operations.append(f"DELETE {key}")
+                return True
+            else:
+                self.operations.append(f"DELETE {key} NOT_FOUND")
+                return False
         except Exception as e:
             self.operations.append(f"DELETE {key} FAILED: {e}")
             return False
@@ -119,15 +104,16 @@ class vmAPI:
             self.operations.append(f"COPY {from_key} -> {to_key} FAILED: {e}")
             return False
 
-# 初始化一些基础数据
-Table.of("main").set("a", entry(mime="text", value={
+# 初始化主表和一些基础数据
+main_table = Table.of("main")
+main_table.set("a", entry(mime="text", value={
     "text": "text text", 
     "lastSavedTime": datetime.now()
 }))
 
 # 加载 Gen 测试用例
 from .test_cases import load_test_cases
-# load_test_cases(Table.of("main"))
+# load_test_cases(main_table)
 
 def init_backup_system(backup_dir: str = ".backup", max_backups: int = 10, 
                       backup_interval: int = 600, format: str = "json"):
@@ -141,12 +127,14 @@ def init_backup_system(backup_dir: str = ".backup", max_backups: int = 10,
     )
     
     # 启动时加载最新备份
+    logger.info("加载最新备份...")
     backup_manager.load_latest_backup(tables)
     
     # 启动自动备份
+    logger.info(f"启动自动备份: 目录={backup_dir}, 格式={format}, 间隔={backup_interval}秒")
     backup_manager.start_auto_backup(tables)
     
-    print(f"备份系统已初始化: {backup_dir}, 格式: {format}, 间隔: {backup_interval}秒")
+    logger.info(f"备份系统初始化完成")
     return backup_manager
 
 def stop_backup_system():
@@ -155,7 +143,7 @@ def stop_backup_system():
     if backup_manager:
         backup_manager.stop_auto_backup()
         backup_manager = None
-        print("备份系统已停止")
+        logger.info("备份系统已停止")
 
 def get_backup_manager():
     """获取备份管理器"""

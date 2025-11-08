@@ -1,7 +1,7 @@
 import os
 import importlib
 from typing import Callable, Dict, Optional, Any
-from Common.base import Renderee
+from Common.base import Renderee, entry
 from Common.util import HTMLResponse
 
 def useRaw(v: Renderee):
@@ -84,13 +84,23 @@ registry = RendererRegistry()
 def register_renderer(viewtype: str, renderer: Callable[[Renderee], HTMLResponse]):
     registry.register_viewtype(viewtype, renderer)
 
-def wrap(v: Renderee):
-    key = (
-        getattr(v, "viewtype", None)
-        or getattr(v, "mime", "")
-        or getattr(v, "suffix", None)
-        or ""
-    )
+def wrap(v):
+    """包装对象为 HTML 响应
+    
+    Args:
+        v: 可以是 Renderee 或 entry 对象
+           - 如果是 entry，会自动转换为 Renderee
+           - 如果是 Renderee，直接使用
+    
+    Returns:
+        HTMLResponse: 渲染后的 HTML 响应
+    """
+    # 自动转换 entry 为 Renderee
+    if isinstance(v, entry):
+        v = v.to_renderee()
+    
+    # 获取渲染器类型键
+    key = getattr(v, "viewtype", "") or getattr(v, "suffix", "") or ""
     renderer = registry.get_renderer(key)
     return renderer(v)
 

@@ -1,4 +1,4 @@
-from Database import pub_get, pub_set, Table
+from Database import Table
 from Common.base import FinalVis, entry
 from datetime import datetime
 from .Text import Text, ShadowPort
@@ -37,10 +37,10 @@ class Menu(ShadowPort):
     @staticmethod
     def _schema_for(base_key: str) -> dict:
         fields = []
-        pub_table = Table.of("main")
+        main_table = Table.of("main")
 
-        # 遍历 PUB 中以 base_key. 开头的键，自动生成字段
-        for k, v in getattr(pub_table, "inner", {}).items():
+        # 遍历主表中以 base_key. 开头的键，自动生成字段
+        for k, v in main_table.inner.items():
             if not isinstance(k, str):
                 continue
             prefix = f"{base_key}."
@@ -115,7 +115,8 @@ class Menu(ShadowPort):
             else:
                 new_val = str(new_val)
 
-            existed = pub_get(dst_key)
+            main_table = Table.of("main")
+            existed = main_table.get(dst_key)
             if isinstance(existed, entry):
                 # 常见的是 text entry：更新其文本
                 if existed.mime == "text":
@@ -123,13 +124,13 @@ class Menu(ShadowPort):
                     text_val = dict(text_val)
                     text_val["text"] = str(new_val)
                     text_val["lastSavedTime"] = datetime.now()
-                    pub_set(dst_key, entry(mime="text", value=text_val))
+                    main_table.set(dst_key, entry(mime="text", value=text_val))
                 else:
                     # 其他 entry，直接覆盖其 value
-                    pub_set(dst_key, entry(mime=existed.mime, value=new_val))
+                    main_table.set(dst_key, entry(mime=existed.mime, value=new_val))
             else:
                 # 原为原生类型则直接写回（默认 text）
-                pub_set(dst_key, new_val)
+                main_table.set(dst_key, new_val)
 
             updated.append(dst_key)
 
@@ -143,7 +144,14 @@ class Menu(ShadowPort):
             skip=True,
         )
 
-
+# 注册到 ShadowPort
 ShadowPort.set(Menu)
+
+# 插件注册函数
+def registry():
+    return {
+        "mime": "menu",
+        "port": Menu
+    }
 
 

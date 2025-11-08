@@ -13,6 +13,9 @@ class Table:
             return tables[string]
         else:
             return Table(string)
+    @staticmethod
+    def the(string):
+        return Table.of(string)
     
     def get(self, key, otherwise=None):
         return self.inner.get(key, otherwise)

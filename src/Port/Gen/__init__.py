@@ -1,6 +1,6 @@
 from typing import Optional
 from Common.base import FinalVis, entry
-from Database import Table, pub_get, pub_set
+from Database import Table
 
 from .generator import Generator
 from .parser import Parser, ParseError
@@ -19,25 +19,27 @@ class Gen:
     @staticmethod
     def access(pack) -> FinalVis:
         """主访问方法"""
-        # 1. 从 pub 表获取内容
-        pub_data = pub_get(pack.entry)
-        if pub_data is None:
+        main_table = Table.of("main")
+        gen_table = Table.of("GEN")
+        
+        # 1. 从主表获取内容
+        data = main_table.get(pack.entry)
+        if data is None:
             return FinalVis.of("raw", "(empty)")
         
         # 统一转换为 entry 格式
-        if isinstance(pub_data, entry):
-            pub_file = pub_data
-        elif isinstance(pub_data, dict):
-            pub_file = entry(mime="text", value=pub_data)
+        if isinstance(data, entry):
+            pub_file = data
+        elif isinstance(data, dict):
+            pub_file = entry(mime="text", value=data)
         else:
-            pub_file = entry(mime="text", value={"text": str(pub_data)})
+            pub_file = entry(mime="text", value={"text": str(data)})
             # 如果是原始数据，保存为entry对象
-            pub_set(pack.entry, pub_file)
+            main_table.set(pack.entry, pub_file)
         
         pub_timestamp = pub_file.value.get("lastSavedTime")
         
         # 2. 检查 gen 表缓存
-        gen_table = Table.of("GEN")
         cached_genfile = gen_table.get(pack.entry)
         genfile = None
         
@@ -59,4 +61,11 @@ class Gen:
         result = genfile.gen()
         is_api = getattr(pack, 'by', '') == 'api'
         return FinalVis.of("raw", str(result), skip=is_api)
+
+# 插件注册函数
+def registry():
+    return {
+        "mime": "gen",
+        "port": Gen
+    }
 

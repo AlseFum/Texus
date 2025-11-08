@@ -1,5 +1,5 @@
 from Common.util import first_valid
-from Database import pub_get, pub_set
+from Database import Table
 from Common.base import FinalVis, entry
 from datetime import datetime
 
@@ -20,17 +20,18 @@ class Text:
     @staticmethod
     def get_data(entry_key) -> entry:
         """从数据库获取文本数据，返回entry对象"""
-        pub_data = pub_get(entry_key)
-        if pub_data is None:
+        main_table = Table.of("main")
+        data = main_table.get(entry_key)
+        if data is None:
             return entry(mime="text", value={"text": "No data", "lastSavedTime": None})
         
         # 统一转换为entry格式
-        if isinstance(pub_data, entry):
-            return pub_data
+        if isinstance(data, entry):
+            return data
         
         # 其他类型（原始字符串数据）
         normalized_data = {
-            "text": str(pub_data),
+            "text": str(data),
             "lastSavedTime": datetime.now()
         }
         return entry(mime="text", value=normalized_data)
@@ -75,8 +76,9 @@ class Text:
         }
         text_file = entry(mime="text", value=file_data)
         
-        # 直接保存entry对象
-        pub_set(pack.entry, text_file)
+        # 直接保存entry对象到主表
+        main_table = Table.of("main")
+        main_table.set(pack.entry, text_file)
         
         # 触发 ShadowPort 的更新
         if pack.entry:
@@ -112,3 +114,10 @@ class ShadowPort(Text):
             except Exception as e:
                 # 更新失败不影响主流程
                 pass
+
+# 插件注册函数
+def registry():
+    return {
+        "mime": ["text", "note"],
+        "port": Text
+    }

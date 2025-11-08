@@ -25,134 +25,139 @@ class Access:
                      query=query or {}, cookies=cookies or {}, suffix=suffix)
 
 
-class Renderee():
-    """渲染接口，定义所有可渲染对象的基本行为
+class Renderee:
+    """渲染对象 - 用于表示层的数据包装
     
-    约定：
-    - payload: 仅用于显示层的临时数据，不参与持久化/反序列化
-    - payload 与 skip 互斥：若提供 payload，则强制 skip=False；若 skip=True，则忽略 payload
+    属性：
+    - viewtype: 视图类型（用于选择渲染器）
+    - value: 渲染内容
+    - skip: 是否跳过渲染直接返回 value
+    - payload: 显示层临时数据（不持久化）
     """
     
-    def __init__(
-        self,
-        viewtype: str = "",
-        value: any = None,
-        skip: bool = False,
-        mime: str | None = None,
-        payload: Dict | None = None,
-    ):
-        # 兼容旧参数名 mime：若提供则优先生效
-        self._viewtype = (mime if (mime and not viewtype) else viewtype) or ""
-        self._value = value
-        # 互斥处理：payload 优先于 skip
-        if payload is not None:
-            self._skip = False
-            self._payload = dict(payload)
-        else:
-            self._skip = bool(skip)
-            self._payload = None
-    
-    @property
-    def value(self):
-        """获取渲染内容"""
-        return self._value
-    
-    # 新命名：用于 Express 渲染的视图类型
-    @property
-    def viewtype(self):
-        return self._viewtype
-    
-    @viewtype.setter
-    def viewtype(self, vt: str):
-        self._viewtype = vt or ""
-    
-    # 旧命名兼容：mime 等价于 viewtype
-    @property
-    def mime(self):
-        return self._viewtype
-    
-    @mime.setter
-    def mime(self, m: str):
-        self._viewtype = m or ""
-    
-    @property
-    def skip(self):
-        """是否应该跳过渲染"""
-        return self._skip
-    
-    @property
-    def payload(self) -> Dict | None:
-        """显示层临时数据（不持久化、不反序列化）"""
-        return self._payload
-    
-    @payload.setter
-    def payload(self, data: Dict | None):
-        # 设置 payload 时，强制关闭 skip
-        self._payload = (dict(data) if isinstance(data, dict) else None)
-        if self._payload is not None:
-            self._skip = False
+    def __init__(self, viewtype: str = "", value: any = None, skip: bool = False, payload: Dict = None):
+        self.viewtype = viewtype
+        self.value = value
+        self.skip = skip
+        self.payload = payload
     
     @classmethod
-    def of(
-        cls,
-        viewtype: str = "",
-        value: any = None,
-        skip: bool = False,
-        mime: str | None = None,
-        payload: Dict | None = None,
-    ):
-        """工厂方法（兼容旧的 mime 命名）"""
-        vt = (mime if (mime and not viewtype) else viewtype) or ""
-        return cls(viewtype=vt, value=value, skip=skip, payload=payload)
+    def of(cls, viewtype: str = "", value: any = None, skip: bool = False, payload: Dict = None):
+        """工厂方法"""
+        return cls(viewtype=viewtype, value=value, skip=skip, payload=payload)
 
 class FinalVis(Renderee):
     """Port模块的视觉内容实现"""
     pass  # 继承父类的所有功能
 
-class entry(Renderee):
-    """文件对象实现 - 存储在数据库中的内容
+class entry:
+    """文件对象 - 存储在数据库中的内容
     
-    说明：
-    - viewtype 仅作为渲染辅助信息（辅助选择 Express 视图），不是业务强约束；可为空。
-    - 序列化与反序列化不应强加 skip 语义，skip 仅在运行期使用。
+    纯数据类，专注于持久化存储。
+    通过 to_renderee() 方法可转换为 Renderee 对象用于渲染。
     """
     
-    def __init__(self, mime: str = "", value: any = None, skip: bool = False, viewtype: str = ""):
-        # 兼容：同时接受 mime/viewtype，逻辑同 Renderee
-        vt = (mime if (mime and not viewtype) else viewtype) or ""
-        super().__init__(viewtype=vt, value=value, skip=skip)
+    def __init_subclass__(cls, mime: str = None, **kwargs):
+        """子类初始化时自动注册到备份系统
+        
+        使用方式:
+            class TimerEntry(entry, mime="timer"):
+                ...
+        """
+        super().__init_subclass__(**kwargs)
+        if mime:
+            # 延迟导入避免循环依赖
+            from Database.backup import register_entry_class
+            register_entry_class(mime, cls)
+    
+    def __init__(self, mime: str = "", value: any = None):
+        self.mime = mime
+        self.value = value
         self.lastModifiedTime = None
     
     def to_dict(self):
-        """将 entry 对象转换为字典"""
-        return {
-            # 仅保存 mime（使用内部 viewtype 值以兼容读写）
-            "mime": self._viewtype,
-            "value": self._value,
-            "lastModifiedTime": self.lastModifiedTime
+        """转换为字典（用于持久化）"""
+        from datetime import datetime
+        
+        def _serialize_value(val):
+            """递归序列化 value 字段"""
+            if isinstance(val, datetime):
+                return val.isoformat()
+            elif isinstance(val, dict):
+                return {k: _serialize_value(v) for k, v in val.items()}
+            elif isinstance(val, (list, tuple)):
+                return [_serialize_value(item) for item in val]
+            else:
+                return val
+        
+        result = {
+            "mime": self.mime,
+            "value": _serialize_value(self.value)
         }
+        
+        # 只有 lastModifiedTime 存在时才包含
+        if self.lastModifiedTime is not None:
+            result["lastModifiedTime"] = self.lastModifiedTime.isoformat() if isinstance(self.lastModifiedTime, datetime) else self.lastModifiedTime
+        
+        return result
     
     @classmethod
     def from_dict(cls, data):
-        """从字典创建 entry 对象"""
+        """从字典创建 entry 对象（用于反序列化）"""
         if not isinstance(data, dict):
             raise ValueError("数据必须是字典格式")
         
-        # 创建新实例
-        vt = data.get("viewtype")
-        if vt is None:
-            vt = data.get("mime", "")
         instance = cls(
-            viewtype=vt,
-            value=data.get("value", None),
-            # 反序列化不引入 skip 语义，保持运行期决定
-            skip=False
+            mime=data.get("mime", ""),
+            value=data.get("value")
         )
-        
-        # 设置 lastModifiedTime
-        if "lastModifiedTime" in data:
-            instance.lastModifiedTime = data["lastModifiedTime"]
-        
+        instance.lastModifiedTime = data.get("lastModifiedTime")
         return instance
+    
+    def to_renderee(self, skip: bool = False, payload: Dict = None):
+        """转换为可渲染对象"""
+        return Renderee(
+            viewtype=self.mime,
+            value=self.value,
+            skip=skip,
+            payload=payload
+        )
+    
+    def to_line(self) -> str:
+        """将 value 转换为单行文本表示
+        
+        使用 JSON 单行格式，并对换行符等特殊字符进行转义
+        """
+        import json
+        from datetime import datetime
+        
+        def _serialize_for_line(val):
+            """递归序列化为 JSON 可接受的格式"""
+            if isinstance(val, datetime):
+                return val.isoformat()
+            elif isinstance(val, dict):
+                return {k: _serialize_for_line(v) for k, v in val.items()}
+            elif isinstance(val, (list, tuple)):
+                return [_serialize_for_line(item) for item in val]
+            else:
+                return val
+        
+        serialized = _serialize_for_line(self.value)
+        # 使用 separators 参数确保紧凑单行输出
+        line = json.dumps(serialized, ensure_ascii=False, separators=(',', ':'))
+        return line
+    
+    @classmethod
+    def from_line(cls, line: str):
+        """从单行文本恢复 value
+        
+        Args:
+            line: JSON 格式的单行文本
+            
+        Returns:
+            解析后的 value
+        """
+        import json
+        return json.loads(line)
 
 

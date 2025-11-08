@@ -1,11 +1,11 @@
-from Database import pub_get, pub_set, Table
+from Database import Table
 from Common.base import FinalVis, entry
 from datetime import datetime
 import threading
 import time
 import random
 
-class TimerEntry(entry):
+class TimerEntry(entry, mime="timer"):
     """Timer 专用的 entry 类型，存储脚本列表、内联脚本和注释"""
     
     def __init__(self, scripts=None, inline_scripts=None, comments=None, count=None, items=None, lastModifiedTime=None, text=None):
@@ -294,6 +294,7 @@ class TimerManager:
         # 从TIMER表获取所有条目
         # Timer.update 会确保所有 timer entry 都在 TIMER 表中有记录
         timer_table = Table.of("TIMER")
+        main_table = Table.of("main")
         
         # 获取所有.timer entry的名称（从TIMER表）
         timer_entries = []
@@ -302,9 +303,9 @@ class TimerManager:
             if entry_name.startswith('_'):
                 continue
             
-            # 检查是否是.timer entry（通过PUB表中的mime类型判断）
-            pub_data = pub_get(entry_name)
-            if pub_data and isinstance(pub_data, entry) and pub_data.mime == "timer":
+            # 检查是否是.timer entry（通过主表中的mime类型判断）
+            data = main_table.get(entry_name)
+            if data and isinstance(data, entry) and data.mime == "timer":
                 timer_entries.append(entry_name)
         
         # 测试功能：每秒打印扫描到的可用的Timer，使用vmAPI打印到TimerHistory.text
@@ -344,8 +345,9 @@ class TimerManager:
     
     def _execute_timer_entry(self, entry_name):
         """执行单个.timer entry"""
-        # 从PUB表获取.timer entry的内容
-        timer_data = pub_get(entry_name)
+        # 从主表获取.timer entry的内容
+        main_table = Table.of("main")
+        timer_data = main_table.get(entry_name)
         
         if timer_data is None:
             return
@@ -387,10 +389,10 @@ class TimerManager:
     def _execute_script(self, script_path):
         """执行单个脚本路径"""
         from Common import execute_script
-        from Database import pub_get
         
         # 获取脚本内容
-        script_data = pub_get(script_path)
+        main_table = Table.of("main")
+        script_data = main_table.get(script_path)
         if script_data is None:
             print(f"警告: 脚本 {script_path} 不存在")
             return
@@ -446,9 +448,10 @@ class Timer(ShadowPort):
     @staticmethod
     def get_data(entry_key) -> TimerEntry:
         """从数据库获取.timer文件数据，返回TimerEntry对象
-        每次获取时会与PUB中的内容时间戳对比，如果不同则重新生成并保存
+        每次获取时会与主表中的内容时间戳对比，如果不同则重新生成并保存
         """
-        pub_data = pub_get(entry_key)
+        main_table = Table.of("main")
+        pub_data = main_table.get(entry_key)
         if pub_data is None:
             return TimerEntry(scripts=[], lastModifiedTime=None)
         
@@ -480,8 +483,8 @@ class Timer(ShadowPort):
         # 从源文本解析生成 TimerEntry
         timer_entry = TimerEntry(text=source_text or "", lastModifiedTime=source_timestamp)
         
-        # 保存到 PUB 表
-        pub_set(entry_key, timer_entry)
+        # 保存到主表
+        main_table.set(entry_key, timer_entry)
         
         return timer_entry
     
@@ -497,18 +500,19 @@ class Timer(ShadowPort):
         text_content = text_data.value.get("text", "")
         text_timestamp = text_data.value.get("lastSavedTime")
         
-        # 检查 PUB 表中的数据
-        pub_data = pub_get(entry_key)
+        # 检查主表中的数据
+        main_table = Table.of("main")
+        data = main_table.get(entry_key)
         
         # 判断是否是 timer entry
-        is_timer = pub_data and getattr(pack, "suffix", None) == "timer"
+        is_timer = data and getattr(pack, "suffix", None) == "timer"
         # 如果已经是 timer entry，更新它
         if is_timer:
             # 从文本内容创建 TimerEntry
             timer_entry = TimerEntry(text=text_content, lastModifiedTime=text_timestamp)
             
-            # 更新 PUB 表中的 timer entry
-            pub_set(entry_key, timer_entry)
+            # 更新主表中的 timer entry
+            main_table.set(entry_key, timer_entry)
             
             # 确保 TIMER 表中有记录，如果不存在则创建，如果存在则更新
             timer_table = Table.of("TIMER")
@@ -522,5 +526,13 @@ class Timer(ShadowPort):
             # 更新时间戳信息（保留 count 和 last_triggered）
             timer_record["last_updated"] = datetime.now().isoformat() if text_timestamp else None
             timer_table.set(entry_key, timer_record)
-            
+
+# 注册到 ShadowPort
 ShadowPort.set(Timer)
+
+# 插件注册函数
+def registry():
+    return {
+        "mime": "timer",
+        "port": Timer
+    }

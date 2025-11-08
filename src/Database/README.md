@@ -45,42 +45,35 @@ value = table.get("key1")
 value = table["key2"]  # 支持字典式访问
 ```
 
-### 2. 便捷函数 (`__init__.py`)
+### 2. 直接使用 Table (`__init__.py`)
 
-#### 公共存储 (PUB)
-
-```python
-from Database import pub_get, pub_set
-
-# 存储公共数据
-pub_set("my_data", "some value")
-
-# 读取公共数据
-data = pub_get("my_data")
-```
-
-#### 私有存储 (HID)
+所有数据存储直接通过 Table.of() 访问，无需额外封装：
 
 ```python
-from Database import hid_get, hid_set
+from Database import Table
 
-# 存储私有数据
-hid_set("secret", "private value")
+# 主表 - 存储所有 entry
+main_table = Table.of("main")
 
-# 读取私有数据
-secret = hid_get("secret")
+# 存储数据
+main_table.set("my_data", "some value")
+
+# 读取数据
+data = main_table.get("my_data")
+
+# 私有数据表
+hid_table = Table.of("HID")
+hid_table.set("secret", "private value")
+secret = hid_table.get("secret")
 ```
 
 #### MIME 类型管理
 
 ```python
-from Database import claim, getmime
+from Database import getmime
 
-# 声明 MIME 类型
-claim("myfile.txt", "text/plain")
-
-# 获取 MIME 类型
-mime_type = getmime("myfile.txt")
+# MIME 类型直接从 entry 对象读取
+mime_type = getmime("myfile")  # 从主表查询 entry 的 mime 属性
 ```
 
 ### 3. 备份系统 (`backup.py`)
@@ -127,7 +120,11 @@ Database 使用 `entry` 对象来存储结构化数据：
 
 ```python
 from Common.base import entry
+from Database import Table
 from datetime import datetime
+
+# 获取主表
+main_table = Table.of("main")
 
 # 创建 entry 对象
 my_entry = entry(
@@ -139,21 +136,21 @@ my_entry = entry(
 )
 
 # 存储 entry
-pub_set("my_entry", my_entry)
+main_table.set("my_entry", my_entry)
 
 # 读取 entry
-retrieved_entry = pub_get("my_entry")
+retrieved_entry = main_table.get("my_entry")
 print(retrieved_entry.value["text"])  # "Hello World"
 ```
 
 ## 内置表
 
-系统预定义了以下表：
+系统使用以下表：
 
-- **PUB** - 公共数据存储
-- **HID** - 私有数据存储  
-- **MIME** - MIME 类型映射
-- **GEN** - 生成器相关数据
+- **main** - 主表，存储所有 entry（路径→entry 映射）
+- **HID** - 私有数据存储
+- **GEN** - Gen Port 的缓存表（ShadowTable）
+- **TIMER** - Timer Port 的统计表（ShadowTable）
 
 ## 备份格式
 
@@ -167,24 +164,30 @@ print(retrieved_entry.value["text"])  # "Hello World"
 ### 1. 简单键值存储
 
 ```python
-from Database import pub_set, pub_get
+from Database import Table
+
+# 获取主表
+main_table = Table.of("main")
 
 # 存储用户配置
-pub_set("user_config", {
+main_table.set("user_config", {
     "theme": "dark",
     "language": "zh-CN"
 })
 
 # 读取配置
-config = pub_get("user_config")
+config = main_table.get("user_config")
 ```
 
 ### 2. 文件内容管理
 
 ```python
-from Database import pub_set, pub_get
+from Database import Table
 from Common.base import entry
 from datetime import datetime
+
+# 获取主表
+main_table = Table.of("main")
 
 # 存储文件内容
 file_content = entry(
@@ -194,25 +197,30 @@ file_content = entry(
         "lastSavedTime": datetime.now()
     }
 )
-pub_set("document.md", file_content)
+main_table.set("document.md", file_content)
 
 # 读取文件内容
-doc = pub_get("document.md")
+doc = main_table.get("document.md")
 print(doc.value["text"])
 ```
 
 ### 3. 脚本存储
 
 ```python
+from Database import Table
+
+# 获取主表
+main_table = Table.of("main")
+
 # 存储 Python 脚本
 script_content = """
 print("Hello from script!")
 return "Script executed"
 """
-pub_set("my_script", script_content)
+main_table.set("my_script", script_content)
 
 # 读取脚本
-script = pub_get("my_script")
+script = main_table.get("my_script")
 ```
 
 ## 性能特性
