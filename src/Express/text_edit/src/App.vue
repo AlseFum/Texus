@@ -5,6 +5,15 @@
       <h1 class="note-title">{{ noteTitle }}</h1>
     </header>
 
+    <!-- 信息提示栏 -->
+    <div v-if="infoMessage" class="info-bar" :class="infoType">
+      <span class="info-icon">{{ getInfoIcon(infoType) }}</span>
+      <span class="info-text">{{ infoMessage }}</span>
+      <button v-if="infoDismissible" @click="dismissInfo" class="info-close" aria-label="关闭提示">
+        ×
+      </button>
+    </div>
+
     <!-- 编辑器 -->
     <main class="note-editor">
       <textarea
@@ -46,6 +55,12 @@ const content = ref(inlineContent)
 const isSaving = ref(false)
 const saveStatus = ref('')
 
+// 信息提示栏数据
+const infoMessage = ref('')
+const infoType = ref('info') // 'info', 'warning', 'error', 'success'
+const infoDismissible = ref(true)
+let infoTimeout = null
+
 // 检查是否需要从服务器请求数据
 const useRequest = typeof window !== 'undefined' && window.inlineContent === undefined
 
@@ -71,6 +86,50 @@ const getCurrentNoteId = () => {
   return parts[parts.length - 1] || 'default'
 }
 
+// 信息提示栏方法
+const showInfo = (message, type = 'info', dismissible = true, duration = 0) => {
+  infoMessage.value = message
+  infoType.value = type
+  infoDismissible.value = dismissible
+  
+  // 清除之前的定时器
+  if (infoTimeout) {
+    clearTimeout(infoTimeout)
+    infoTimeout = null
+  }
+  
+  // 如果设置了持续时间，自动关闭
+  if (duration > 0) {
+    infoTimeout = setTimeout(() => {
+      dismissInfo()
+    }, duration)
+  }
+}
+
+const dismissInfo = () => {
+  infoMessage.value = ''
+  if (infoTimeout) {
+    clearTimeout(infoTimeout)
+    infoTimeout = null
+  }
+}
+
+const getInfoIcon = (type) => {
+  const icons = {
+    'info': 'ℹ️',
+    'warning': '⚠️',
+    'error': '❌',
+    'success': '✓',
+    'empty': '📝'
+  }
+  return icons[type] || icons.info
+}
+
+// 暴露给外部使用（可以通过 window 访问）
+if (typeof window !== 'undefined') {
+  window.showEditorInfo = showInfo
+}
+
 const loadNote = async () => {
   console.log("Loading text file", getCurrentNoteId())
   try {
@@ -91,9 +150,12 @@ const loadNote = async () => {
     
     // 处理新的API响应格式
     let text = ""
+    let mimeType = ""
+    
     if (result && typeof result === 'object') {
       // 优先使用content字段，然后text字段
       text = result.content || result.text || ""
+      mimeType = result.mime || result.mimeType || ""
     } else if (typeof result === 'string') {
       text = result
     } else {
@@ -114,10 +176,17 @@ const loadNote = async () => {
     
     content.value = text
     
+    // 显示信息提示
+    if (!text || text.trim() === '') {
+      showInfo('当前文档为空，开始编辑吧 📝', 'empty', true, 5000)
+    } else if (mimeType && mimeType !== 'text') {
+      showInfo(`文档类型: ${mimeType}`, 'info', true, 3000)
+    }
+    
   } catch (error) {
     console.error('加载文本文件失败:', error)
     content.value = ""
-    // 可以在这里显示错误提示
+    showInfo(`加载失败: ${error.message}`, 'error', true, 5000)
   }
 }
 
@@ -367,6 +436,97 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 信息提示栏样式 */
+.info-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 15px;
+  border-bottom: 1px solid transparent;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.info-bar.info {
+  background-color: #e3f2fd;
+  color: #1565c0;
+  border-bottom-color: #90caf9;
+}
+
+.info-bar.warning {
+  background-color: #fff3e0;
+  color: #e65100;
+  border-bottom-color: #ffb74d;
+}
+
+.info-bar.error {
+  background-color: #ffebee;
+  color: #c62828;
+  border-bottom-color: #ef5350;
+}
+
+.info-bar.success {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border-bottom-color: #66bb6a;
+}
+
+.info-bar.empty {
+  background-color: #f3e5f5;
+  color: #6a1b9a;
+  border-bottom-color: #ba68c8;
+}
+
+.info-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.info-text {
+  flex: 1;
+  font-weight: 500;
+}
+
+.info-close {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.info-close:hover {
+  opacity: 1;
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.info-close:active {
+  transform: scale(0.9);
+}
+
 .save-status {
   margin-left: 12px;
   padding: 4px 8px;
@@ -406,5 +566,23 @@ onUnmounted(() => {
 .footer-left {
   display: flex;
   align-items: center;
+}
+
+/* 响应式设计 - 移动端 */
+@media (max-width: 768px) {
+  .info-bar {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  
+  .info-icon {
+    font-size: 16px;
+  }
+  
+  .info-close {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
 }
 </style>

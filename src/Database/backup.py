@@ -196,13 +196,8 @@ class BackupManager:
         backup_path = self.backup_dir / filename
         
         try:
-            # 收集所有表的数据
-            backup_data = {
-                "timestamp": timestamp,
-                "created_at": datetime.now().isoformat(),
-                "format_version": "1.0",
-                "tables": {}
-            }
+            # 收集所有表的数据 - 直接使用字典，不添加元数据
+            backup_data = {}
             
             # 遍历所有表
             print(f"\n开始备份，共 {len(tables_dict)} 个表:")
@@ -213,24 +208,16 @@ class BackupManager:
                     entry_count = len(raw_data) if isinstance(raw_data, dict) else 0
                     print(f"  表 {table_name}: {entry_count} 条记录")
                     
-                    # 序列化表数据
-                    serialized_data = {
-                        "name": table_data.get("name"),
-                        "data": serialize_value(raw_data),
-                        "sync_required": table_data.get("sync_required", False)
-                    }
-                    backup_data["tables"][table_name] = serialized_data
+                    # 直接序列化表数据，不添加额外包装
+                    backup_data[table_name] = serialize_value(raw_data)
                 else:
                     # 如果没有 get_all_data 方法，使用 inner 属性
                     inner_data = getattr(table, 'inner', {})
                     entry_count = len(inner_data) if isinstance(inner_data, dict) else 0
                     print(f"  表 {table_name}: {entry_count} 条记录")
                     
-                    backup_data["tables"][table_name] = {
-                        "name": table_name,
-                        "data": serialize_value(inner_data),
-                        "sync_required": False
-                    }
+                    # 直接序列化
+                    backup_data[table_name] = serialize_value(inner_data)
             print(f"备份数据收集完成，开始保存...")
             
             # 保存备份文件
@@ -314,19 +301,25 @@ class BackupManager:
         
         # 恢复表数据
         restored_tables = 0
-        for table_name, table_data in backup_data.get("tables", {}).items():
-            if table_name in tables_dict:
-                table = tables_dict[table_name]
-                
-                # 恢复表数据
-                if hasattr(table, 'inner'):
-                    table.inner = deserialize_value(table_data.get("data", {}))
-                
-                # 恢复其他属性
-                if hasattr(table, 'lastModifiedTime'):
-                    table.lastModifiedTime = table_data.get("lastModifiedTime")
-                
-                restored_tables += 1
+        
+        # 兼容旧格式（有 "tables" 键）和新格式（直接是表数据）
+        if "tables" in backup_data and isinstance(backup_data.get("tables"), dict):
+            # 旧格式兼容
+            tables_data = backup_data["tables"]
+            for table_name, table_data in tables_data.items():
+                if table_name in tables_dict:
+                    table = tables_dict[table_name]
+                    if hasattr(table, 'inner'):
+                        table.inner = deserialize_value(table_data.get("data", {}))
+                    restored_tables += 1
+        else:
+            # 新格式：直接是表名到数据的映射
+            for table_name, table_data in backup_data.items():
+                if table_name in tables_dict:
+                    table = tables_dict[table_name]
+                    if hasattr(table, 'inner'):
+                        table.inner = deserialize_value(table_data)
+                    restored_tables += 1
         
         print(f"成功恢复 {restored_tables} 个表的数据")
         return True
