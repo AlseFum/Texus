@@ -6,13 +6,15 @@
     </header>
 
     <!-- 信息提示栏 -->
-    <div v-if="infoMessage" class="info-bar" :class="infoType">
-      <span class="info-icon">{{ getInfoIcon(infoType) }}</span>
-      <span class="info-text">{{ infoMessage }}</span>
-      <button v-if="infoDismissible" @click="dismissInfo" class="info-close" aria-label="关闭提示">
-        ×
-      </button>
-    </div>
+    <Transition name="info-slide">
+      <div v-if="infoMessage" class="info-bar" :class="infoType">
+        <span class="info-icon">{{ getInfoIcon(infoType) }}</span>
+        <span class="info-text">{{ infoMessage }}</span>
+        <button v-if="infoDismissible" @click="dismissInfo" class="info-close" aria-label="关闭提示">
+          ×
+        </button>
+      </div>
+    </Transition>
 
     <!-- 编辑器 -->
     <main class="note-editor">
@@ -420,6 +422,18 @@ const handleGlobalKeyDown = (event) => {
 
 // 生命周期
 onMounted(() => {
+  // 检查是否有注入的通知栏信息
+  if (typeof window !== 'undefined' && window.infoBarMessage) {
+    const message = window.infoBarMessage || ''
+    const type = window.infoBarType || 'info'
+    const dismissible = window.infoBarDismissible !== false
+    const duration = window.infoBarDuration || 0
+    
+    if (message) {
+      showInfo(message, type, dismissible, duration)
+    }
+  }
+  
   // 只有当useRequest为true时才从服务器加载note
   if (useRequest) {
     loadNote()
@@ -444,19 +458,43 @@ onUnmounted(() => {
   padding: 10px 15px;
   border-bottom: 1px solid transparent;
   font-size: 14px;
-  transition: all 0.3s ease;
-  animation: slideDown 0.3s ease;
+  pointer-events: auto;
+  overflow: hidden;
 }
 
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* 信息栏进入和离开动画 */
+.info-slide-enter-active,
+.info-slide-leave-active {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.info-slide-enter-from {
+  opacity: 0;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.info-slide-enter-to {
+  opacity: 1;
+  max-height: 200px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.info-slide-leave-from {
+  opacity: 1;
+  max-height: 200px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.info-slide-leave-to {
+  opacity: 0;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .info-bar.info {
