@@ -1,7 +1,8 @@
 from Common.base import FinalVis, entry
 from Common import execute_script
-from Database import Table
-from .Text import Text
+from Database import Table, pub_set
+from .Text import Text, ShadowPort
+from datetime import datetime
 
 # 脚本模板
 ENHANCED_SCRIPT_TEMPLATE = """# 输入数据
@@ -210,19 +211,48 @@ Manual={
     "text":TEXT_MANUAL,
     "py":PY_MANUAL,
     "gen":GEN_MANUAL,
-    "meta":META_MANUAL,
     "timer":TIMER_MANUAL,
 }
 class Meta:
     @staticmethod
     def access(pack) -> FinalVis:
-        """Meta Port 主访问方法"""
-        return Meta.accessScript(pack)
+        """像 Text 一样编辑 .meta 内容；不在 access 中执行脚本"""
+        op = getattr(getattr(pack, "query", {}), "get", lambda *_: None)("op", "get")
+        if op == "set":
+            return Meta.set(pack)
+        is_api = getattr(pack, "by", "") == "api"
+        return Text.getByApi(pack) if is_api else Text.getByWeb(pack)
+    
+    @staticmethod
+    def set(pack) -> FinalVis:
+        """设置/保存 meta 文本，复用 Text 的存储表（PUB），但保持 mime=meta"""
+        content = getattr(getattr(pack, "query", {}), "get", lambda *_: None)("content", "") or ""
+        try:
+            import urllib.parse
+            content = urllib.parse.unquote(content)
+        except Exception:
+            pass
+        saved_time = datetime.now()
+        file_data = {
+            "text": content,
+            "lastSavedTime": saved_time
+        }
+        text_file = entry(mime="meta", value=file_data)
+        # 与 Text.set 一致地写入 PUB，并触发 ShadowPort 更新
+        pub_set(getattr(pack, "entry", ""), text_file)
+        if getattr(pack, "entry", None):
+            try:
+                ShadowPort.update(pack)
+            except Exception:
+                pass
+        return FinalVis.of("text", {"success": True, "message": "保存成功", "data": {"text": content, "lastSavedTime": saved_time.isoformat()}}, skip=True)
     
     @staticmethod
     def accessScript(pack) -> FinalVis:
         if(getattr(pack, "suffix", None) in Manual):
             return FinalVis.of("raw", Manual[pack.suffix])
+        if(pack.entry == "meta" and pack.suffix == "meta"):
+            return FinalVis.of("raw",META_MANUAL)
         
         main_table = Table.of("main")
         

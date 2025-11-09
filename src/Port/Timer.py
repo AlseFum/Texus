@@ -1,5 +1,6 @@
 from Database import Table
 from Common.base import FinalVis, entry
+from Common.util import first_valid
 from datetime import datetime
 import threading
 import time
@@ -444,6 +445,48 @@ class Timer(ShadowPort):
     使用PUB表存储.timer entry内容
     使用TIMER表记录执行统计信息
     """
+    @staticmethod
+    def access(pack) -> FinalVis:
+        """访问 .timer 时在页面顶部弹出提示（通知栏），说明 + / - 的用法"""
+        op = first_valid(getattr(pack, "query", {}).get("op", None), "get")
+        if op == "set":
+            # 复用 Text 的保存逻辑（会触发 ShadowPort.update，从而更新 TIMER 表）
+            return Text.set(pack)
+        
+        # API 下保持与 Text 一致，返回结构化数据
+        is_api = getattr(pack, "by", "") == "api"
+        if is_api:
+            return Text.getByApi(pack)
+        
+        # Web 渲染：注入通知栏，提示 + / - 用法
+        text_file = Text.get_data(getattr(pack, "entry", "") or getattr(pack, "path", ""))
+        text_content = text_file.value.get("text", "")
+        
+        help_msg = (
+            "Timer 用法提示：\\n"
+            "- 以 `- <脚本路径>` 添加脚本（每行一个）\\n"
+            "- 以 `+ <内联脚本>` 添加即时执行的脚本\\n"
+            "- 以 `# 注释` 添加说明\\n"
+            "- 可选 `count = <数字>` 指定次数\\n"
+            "示例：\\n"
+            "count = 5\\n"
+            "# 下面是脚本路径\\n"
+            "- script1.py\\n"
+            "- script2.py\\n"
+            "# 下面是内联脚本\\n"
+            "+ db.set(\\\"key\\\", \\\"value\\\")"
+        )
+        
+        return FinalVis.of(
+            "text",
+            payload={
+                "text": text_content,
+                "infoMessage": help_msg,
+                "infoType": "info",
+                "infoDismissible": True,
+                "infoDuration": 0
+            }
+        )
     
     @staticmethod
     def get_data(entry_key) -> TimerEntry:

@@ -136,11 +136,19 @@ class BackupManager:
         if self.format == "toml" and not TOML_AVAILABLE:
             print("警告: TOML 不可用，使用 JSON 格式")
             self.format = "json"
+        
+        # 日志开关（默认安静，设置环境变量 TEXUS_BACKUP_VERBOSE=1 开启详细日志）
+        self.verbose = str(os.getenv("TEXUS_BACKUP_VERBOSE", "0")).lower() in ("1", "true", "yes", "on")
+    
+    def _log(self, message: str):
+        """受控日志：仅在 verbose 启用时输出"""
+        if self.verbose:
+            print(message)
     
     def start_auto_backup(self, tables_dict_or_func):
         """启动自动备份"""
         if self._running:
-            print("自动备份已在运行")
+            self._log("自动备份已在运行")
             return
         
         self._running = True
@@ -151,7 +159,7 @@ class BackupManager:
             daemon=True
         )
         self._backup_thread.start()
-        print(f"自动备份已启动，间隔 {self.backup_interval} 秒")
+        self._log(f"自动备份已启动，间隔 {self.backup_interval} 秒")
     
     def stop_auto_backup(self):
         """停止自动备份"""
@@ -162,7 +170,7 @@ class BackupManager:
         self._stop_event.set()
         if self._backup_thread:
             self._backup_thread.join(timeout=5)
-        print("自动备份已停止")
+        self._log("自动备份已停止")
     
     def _backup_loop(self, tables_dict_or_func):
         """备份循环"""
@@ -200,13 +208,13 @@ class BackupManager:
             backup_data = {}
             
             # 遍历所有表
-            print(f"\n开始备份，共 {len(tables_dict)} 个表:")
+            self._log(f"\n开始备份，共 {len(tables_dict)} 个表:")
             for table_name, table in tables_dict.items():
                 if hasattr(table, 'get_all_data'):
                     table_data = table.get_all_data()
                     raw_data = table_data.get("data", {})
                     entry_count = len(raw_data) if isinstance(raw_data, dict) else 0
-                    print(f"  表 {table_name}: {entry_count} 条记录")
+                    self._log(f"  表 {table_name}: {entry_count} 条记录")
                     
                     # 直接序列化表数据，不添加额外包装
                     backup_data[table_name] = serialize_value(raw_data)
@@ -214,11 +222,11 @@ class BackupManager:
                     # 如果没有 get_all_data 方法，使用 inner 属性
                     inner_data = getattr(table, 'inner', {})
                     entry_count = len(inner_data) if isinstance(inner_data, dict) else 0
-                    print(f"  表 {table_name}: {entry_count} 条记录")
+                    self._log(f"  表 {table_name}: {entry_count} 条记录")
                     
                     # 直接序列化
                     backup_data[table_name] = serialize_value(inner_data)
-            print(f"备份数据收集完成，开始保存...")
+            self._log(f"备份数据收集完成，开始保存...")
             
             # 保存备份文件
             if self.format == "json":
@@ -231,7 +239,7 @@ class BackupManager:
                     # 长文本会自动使用 """ 多行语法
                     toml.dump(backup_data, f)
             
-            print(f"+ {backup_path}")
+            self._log(f"+ {backup_path}")
             
             # 清理旧备份
             self._cleanup_old_backups()
@@ -263,7 +271,7 @@ class BackupManager:
         backup_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
         for file_path in backup_files[self.max_backups:]:
             file_path.unlink()
-            print(f"- {file_path}")
+            self._log(f"- {file_path}")
     
     def _mark_tables_synced(self, tables_dict: Dict[str, Any]):
         """标记所有表已备份"""
@@ -288,12 +296,12 @@ class BackupManager:
         # 查找最新备份文件
         backup_files = list(self.backup_dir.glob(f"backup_*.{self.format}"))
         if not backup_files:
-            print("没有找到备份文件")
+            self._log("没有找到备份文件")
             return False
         
         # 按修改时间排序，获取最新的
         latest_backup = max(backup_files, key=lambda x: x.stat().st_mtime)
-        print(f"加载最新备份: {latest_backup}")
+        self._log(f"加载最新备份: {latest_backup}")
         
         # 加载备份数据
         with open(latest_backup, 'r', encoding='utf-8') as f:
@@ -387,7 +395,7 @@ class BackupManager:
         
         try:
             lines = []
-            print(f"\n开始创建 line 格式备份，共 {len(tables_dict)} 个表:")
+            self._log(f"\n开始创建 line 格式备份，共 {len(tables_dict)} 个表:")
             
             # 遍历所有表
             for table_name, table in tables_dict.items():
@@ -400,7 +408,7 @@ class BackupManager:
                     continue
                 
                 entry_count = len(raw_data) if isinstance(raw_data, dict) else 0
-                print(f"  表 {table_name}: {entry_count} 条记录")
+                self._log(f"  表 {table_name}: {entry_count} 条记录")
                 
                 if not raw_data:
                     continue
@@ -446,7 +454,7 @@ class BackupManager:
             with open(backup_path, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(lines))
             
-            print(f"+ {backup_path}")
+            self._log(f"+ {backup_path}")
             
             # 清理旧备份
             self._cleanup_old_backups()
@@ -479,13 +487,13 @@ class BackupManager:
             if backup_path is None:
                 backup_files = list(self.backup_dir.glob("backup_*.txt"))
                 if not backup_files:
-                    print("没有找到 line 格式备份文件")
+                    self._log("没有找到 line 格式备份文件")
                     return False
                 backup_path = max(backup_files, key=lambda x: x.stat().st_mtime)
             else:
                 backup_path = Path(backup_path)
             
-            print(f"加载 line 格式备份: {backup_path}")
+            self._log(f"加载 line 格式备份: {backup_path}")
             
             # 读取文件
             with open(backup_path, 'r', encoding='utf-8') as f:
@@ -513,9 +521,9 @@ class BackupManager:
                         
                         if table_name in tables_dict:
                             current_table = tables_dict[table_name]
-                            print(f"  恢复表: {table_name}")
+                            self._log(f"  恢复表: {table_name}")
                         else:
-                            print(f"  警告: 表 {table_name} 不存在，跳过")
+                            self._log(f"  警告: 表 {table_name} 不存在，跳过")
                             current_table = None
                     continue
                 
@@ -548,7 +556,7 @@ class BackupManager:
                             current_table.inner[keyname] = entry_obj
                             restored_count += 1
             
-            print(f"成功恢复 {restored_count} 条记录")
+            self._log(f"成功恢复 {restored_count} 条记录")
             return True
             
         except Exception as e:
