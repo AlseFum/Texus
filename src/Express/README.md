@@ -2,6 +2,27 @@
 
 Express 模块负责管理数据的呈现形式，提供多种用户界面和渲染方式。目前主要提供网页形式的用户界面。现已支持插件机制，可按需扩展新的渲染器与 UI。
 
+## 目录
+
+- [文件结构](#文件结构)
+- [核心功能](#核心功能)
+  - [1. 渲染系统](#1-渲染系统)
+  - [2. 内容提取](#2-内容提取)
+  - [3. 模板系统](#3-模板系统)
+- [Payload 使用方法](#payload-使用方法)
+  - [1. Text/Note Payload](#1-textnote-payload)
+  - [2. Raw Payload](#2-raw-payload)
+  - [3. 通知栏配置](#3-通知栏配置)
+- [用户界面组件](#用户界面组件)
+  - [1. Text Edit (文本编辑器)](#1-text-edit-文本编辑器)
+- [使用示例](#使用示例)
+- [模板自定义](#模板自定义)
+- [开发指南](#开发指南)
+- [样式指南](#样式指南)
+- [注意事项](#注意事项)
+- [扩展](#扩展)
+- [插件机制](#插件机制新增)
+
 ## 文件结构
 
 ```
@@ -76,6 +97,206 @@ html = get_template("text_edit")
 - 现代化 UI 风格
 - 支持中文显示
 - 简洁的卡片布局
+
+## Payload 使用方法
+
+Express 支持通过 `payload` 字典传递额外的配置参数，控制渲染行为和界面显示。
+
+### 1. Text/Note Payload
+
+文本编辑器支持通过 payload 传递文本内容和通知栏配置。
+
+#### 基本使用
+
+```python
+from Common.base import FinalVis
+
+# 简单文本渲染
+content = FinalVis.of("text", "Hello World")
+
+# 使用 payload 传递配置
+vis = FinalVis.of("text", payload={
+    "text": "这是文本内容",
+    "infoMessage": "欢迎使用文本编辑器",
+    "infoType": "info",
+    "infoDismissible": True,
+    "infoDuration": 5000
+})
+```
+
+#### Payload 字段说明
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `text` | string | 否 | - | 文本内容（如果不指定，使用 `extract_str()` 提取） |
+| `infoMessage` | string | 否 | - | 通知栏消息内容 |
+| `infoType` | string | 否 | `"info"` | 通知类型：`info`/`warning`/`error`/`success`/`empty` |
+| `infoDismissible` | boolean | 否 | `True` | 是否可关闭通知栏 |
+| `infoDuration` | integer | 否 | `3000` | 自动关闭时间（毫秒，0表示不自动关闭） |
+
+#### 完整示例
+
+```python
+from Common.base import FinalVis
+from Express import wrap
+
+# 创建带通知栏的文本对象
+vis = FinalVis.of("text", payload={
+    "text": """
+# 项目说明
+
+这是一个示例项目。
+
+## 功能特性
+- 支持 Markdown
+- 自动保存
+- 快捷键支持
+    """,
+    "infoMessage": "⚠️ 此文档为只读模式",
+    "infoType": "warning",
+    "infoDismissible": True,
+    "infoDuration": 0  # 不自动关闭
+})
+
+# 渲染为 HTML 响应
+html_response = wrap(vis)
+```
+
+### 2. Raw Payload
+
+原始渲染器提供最基础的文本显示，payload 结构较为简单。
+
+#### 基本使用
+
+```python
+from Common.base import FinalVis
+
+# 简单原始文本
+content = FinalVis.of("raw", "纯文本内容")
+
+# 使用 payload
+vis = FinalVis.of("raw", payload={
+    "text": "这是原始文本"
+})
+```
+
+#### Payload 字段说明
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `text` | string | 否 | - | 文本内容 |
+
+### 3. 通知栏配置
+
+文本编辑器支持在页面加载时显示通知栏，用于提示用户重要信息。
+
+#### 通知类型
+
+通知栏支持 5 种类型，每种类型有不同的颜色主题：
+
+| 类型 | 颜色 | 适用场景 |
+|------|------|----------|
+| `info` | 蓝色 | 一般信息提示 |
+| `warning` | 橙色 | 警告信息 |
+| `error` | 红色 | 错误提示 |
+| `success` | 绿色 | 成功提示 |
+| `empty` | 紫色 | 空文档提示 |
+
+#### 动画效果
+
+通知栏支持平滑的进入和离开动画：
+- 进入时：高度从 0 展开，同时淡入
+- 离开时：高度收缩到 0，同时淡出
+- 动画时长：300ms
+
+#### 使用示例
+
+```python
+# 信息提示
+vis = FinalVis.of("text", payload={
+    "text": "配置文件内容",
+    "infoMessage": "💡 提示：修改后需要重启服务",
+    "infoType": "info",
+    "infoDuration": 5000
+})
+
+# 警告提示
+vis = FinalVis.of("text", payload={
+    "text": "系统配置",
+    "infoMessage": "⚠️ 警告：此配置会影响系统稳定性",
+    "infoType": "warning",
+    "infoDismissible": True,
+    "infoDuration": 0  # 不自动关闭
+})
+
+# 错误提示
+vis = FinalVis.of("text", payload={
+    "text": "错误日志",
+    "infoMessage": "❌ 文件加载失败，显示为空内容",
+    "infoType": "error",
+    "infoDuration": 8000
+})
+
+# 成功提示
+vis = FinalVis.of("text", payload={
+    "text": "已保存的内容",
+    "infoMessage": "✓ 文件已成功保存",
+    "infoType": "success",
+    "infoDuration": 3000
+})
+
+# 空文档提示
+vis = FinalVis.of("text", payload={
+    "text": "",
+    "infoMessage": "📝 当前文档为空，开始编辑吧",
+    "infoType": "empty",
+    "infoDuration": 5000
+})
+```
+
+#### 高级用法：动态通知
+
+```python
+def render_file_with_status(filepath, status="success"):
+    """根据文件状态显示不同的通知"""
+    
+    # 读取文件内容
+    try:
+        with open(filepath, 'r') as f:
+            content = f.read()
+    except Exception as e:
+        content = ""
+        status = "error"
+    
+    # 根据状态配置通知
+    notifications = {
+        "success": {
+            "message": "✓ 文件加载成功",
+            "type": "success",
+            "duration": 3000
+        },
+        "error": {
+            "message": f"❌ 文件加载失败: {str(e)}",
+            "type": "error",
+            "duration": 0
+        },
+        "empty": {
+            "message": "📝 文件为空",
+            "type": "empty",
+            "duration": 5000
+        }
+    }
+    
+    notification = notifications.get(status, notifications["success"])
+    
+    return FinalVis.of("text", payload={
+        "text": content,
+        "infoMessage": notification["message"],
+        "infoType": notification["type"],
+        "infoDismissible": True,
+        "infoDuration": notification["duration"]
+    })
+```
 
 ## 用户界面组件
 

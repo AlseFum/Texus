@@ -87,6 +87,135 @@ Closes #123
    - 在 `src/Port/README.md` 中添加说明
    - 在 `src/Port/Meta.py` 中添加帮助文档
 
+## 添加新的 Express 渲染器
+
+Express 模块支持通过插件机制添加新的渲染器，无需修改核心代码。
+
+### 方法 1: 创建插件文件
+
+在 `src/Express/` 目录下创建新的 Python 文件（如 `my_renderer.py`）：
+
+```python
+from Express import extract_str, HTMLResponse, get_template
+
+def registry():
+    """插件注册函数"""
+    def render_my_type(v):
+        # 提取内容
+        content = extract_str(v)
+        
+        # 获取 payload（可选配置）
+        payload = getattr(v, "payload", None)
+        
+        # 处理渲染逻辑
+        html = get_template("my_renderer")  # 或自定义 HTML
+        
+        # 注入数据
+        js_inject = f'var myData="{content}";'
+        return HTMLResponse(content=html.replace("/*!insert*/", js_inject))
+    
+    return {
+        "suffix": ["mytype"],  # 支持的文件类型
+        "lambda": render_my_type
+    }
+```
+
+### 方法 2: 前端 UI 组件开发
+
+如果需要自定义 UI 界面：
+
+1. **创建前端项目**:
+   ```bash
+   cd src/Express
+   mkdir my_ui
+   cd my_ui
+   npm init -y
+   npm install vue@next vite @vitejs/plugin-vue
+   ```
+
+2. **开发界面**:
+   - 在 `src/` 目录创建 Vue 组件
+   - 配置 `vite.config.js`
+   - 确保构建输出到 `dist/` 目录
+
+3. **构建生产版本**:
+   ```bash
+   npm run build
+   ```
+
+4. **在渲染器中引用**:
+   ```python
+   html = get_template("my_ui")
+   ```
+
+详细信息请参考 [Express 模块文档](../src/Express/README.md)。
+
+## 前端开发指南
+
+### 文本编辑器开发
+
+文本编辑器位于 `src/Express/text_edit/`，基于 Vue 3 开发。
+
+#### 开发环境设置
+
+```bash
+cd src/Express/text_edit
+npm install
+npm run dev
+```
+
+#### 项目结构
+
+```
+text_edit/
+├── src/
+│   ├── App.vue         # 主组件
+│   ├── main.js         # 入口文件
+│   └── style.css       # 全局样式
+├── dist/               # 构建输出
+├── index.html          # HTML 模板
+├── package.json        # 依赖配置
+└── vite.config.js      # Vite 配置
+```
+
+#### 构建生产版本
+
+```bash
+npm run build
+```
+
+构建后的文件会输出到 `dist/` 目录，自动被后端加载。
+
+#### 添加新功能
+
+1. **修改 Vue 组件** (`src/App.vue`)
+2. **测试功能** (`npm run dev`)
+3. **构建生产版本** (`npm run build`)
+4. **重启后端服务器**查看效果
+
+#### 样式规范
+
+- 遵循现有的设计风格
+- 使用响应式设计
+- 支持移动端访问
+- 保持界面简洁
+
+### 通知栏功能
+
+如需在渲染器中使用通知栏功能，通过 payload 传递配置：
+
+```python
+return FinalVis.of("text", payload={
+    "text": "内容",
+    "infoMessage": "提示信息",
+    "infoType": "info",  # info/warning/error/success/empty
+    "infoDismissible": True,
+    "infoDuration": 5000  # 毫秒
+})
+```
+
+详见 [Payload 使用方法](../src/Express/README.md#payload-使用方法)。
+
 ## 测试
 
 运行测试（如果有）:

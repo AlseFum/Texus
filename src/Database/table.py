@@ -48,8 +48,7 @@ class Table:
         """获取表的所有数据，用于备份"""
         return {
             "name": self.name,
-            "data": self.inner.copy(),
-            "sync_required": self._sync_required
+            "data": self.inner.copy()
         }
     
     @staticmethod

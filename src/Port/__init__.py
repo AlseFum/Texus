@@ -13,7 +13,7 @@ class DefaultPort:
     def access(pack):
         main_table = Table.of("main")
         data = main_table.get(pack.entry)
-        display_data = data if data is not None else "(empty)"
+        display_data = data if data is not None else ""
         # 如果data是entry对象，提取其文本内容
         if hasattr(display_data, 'value'):
             if isinstance(display_data.value, dict) and 'text' in display_data.value:
@@ -21,7 +21,7 @@ class DefaultPort:
             elif hasattr(display_data, 'to_raw') and callable(display_data.to_raw):
                 display_data = display_data.to_raw()
         # Web请求：只需要payload
-        return FinalVis.of("raw", payload={"text": str(display_data)})
+        return FinalVis.of("raw", payload={"text": str(display_data),"title":"" if main_table.get(pack.entry) else "-"})
 
 # Port 注册表
 ports: Dict[str, type] = {}
@@ -45,7 +45,7 @@ registry = PortRegistry()
 def register_port(mime: str, port_class: type):
     """注册 Port 类"""
     registry.register_mime(mime, port_class)
-    logger.debug(f"注册 Port: mime={mime}, class={port_class.__name__}")
+    # logger.debug(f"注册 Port: mime={mime}, class={port_class.__name__}")
 
 def dispatch(mime: str) -> type:
     """根据 mime 类型分发到对应的 Port"""
@@ -67,9 +67,10 @@ def _load_plugins_from_port_root():
             if hasattr(mod, "registry") and callable(getattr(mod, "registry")):
                 info = mod.registry()
                 _register_plugin_dict(info)
-                logger.debug(f"加载插件: {fname}")
+                # logger.debug(f"加载插件: {fname}")
         except Exception as e:
-            logger.warning(f"加载插件失败: {module_name}, 错误: {e}")
+            pass
+            # logger.warning(f"加载插件失败: {module_name}, 错误: {e}")
     
     # 加载子目录中的插件（如 Gen）
     for item in os.listdir(base_dir):
@@ -82,7 +83,8 @@ def _load_plugins_from_port_root():
                     info = mod.registry()
                     _register_plugin_dict(info)
             except Exception as e:
-                print(f"Warning: Failed to load Port plugin {module_name}: {e}")
+                pass
+                # print(f"Warning: Failed to load Port plugin {module_name}: {e}")
 
 def _register_plugin_dict(info: Dict[str, Any]):
     """
@@ -119,7 +121,7 @@ def _register_plugin_dict(info: Dict[str, Any]):
 
 def load_plugins():
     """加载所有插件"""
-    logger.info("开始加载 Port 插件...")
+    # logger.info("开始加载 Port 插件...")
     _load_plugins_from_port_root()
     
     # 支持环境变量加载外部插件
@@ -131,11 +133,12 @@ def load_plugins():
                 if hasattr(mod, "registry") and callable(getattr(mod, "registry")):
                     info = mod.registry()
                     _register_plugin_dict(info)
-                    logger.info(f"加载外部插件: {mod_name}")
+                    # logger.info(f"加载外部插件: {mod_name}")
             except Exception as e:
-                logger.warning(f"加载外部插件失败: {mod_name}, 错误: {e}")
+                pass
+                # logger.warning(f"加载外部插件失败: {mod_name}, 错误: {e}")
     
-    logger.info(f"Port 插件加载完成，共注册 {len(ports)} 个 MIME 类型")
+    # logger.info(f"Port 插件加载完成，共注册 {len(ports)} 个 MIME 类型")
 
 # 模块导入时自动加载插件
 load_plugins()

@@ -250,11 +250,26 @@ name
 
 ## 📚 文档
 
-- 📖 [完整文档](docs/) - 详细的使用指南
-- 🎯 [快速开始](docs/quick-start.md) - 5分钟上手
-- 🔌 [API文档](docs/api.md) - REST API参考
-- 🎨 [Gen语法](src/Port/Gen/Syntax.md) - 生成器语法指南
-- 🤝 [贡献指南](docs/contributing.md) - 参与开发
+### 📖 根据您的需求选择文档
+
+#### 👤 我是网页使用者
+- **[用户使用指南](docs/user-guide.md)** ⭐ 推荐 - 文本编辑器完整使用教程
+  - 界面介绍、基本操作、快捷键、通知栏、常见问题
+
+#### 🔧 我想搭建 Texus
+- **[快速开始](docs/quick-start.md)** - 5分钟安装和启动
+- **[入门指南](docs/getting-started.md)** - 理解核心概念和架构
+- **[教程文档](docs/tutorial.md)** - 逐步学习各项功能
+
+#### 💻 我是开发者
+- **[API 文档](docs/api.md)** - 完整的 REST API 参考
+- **[Express 模块](src/Express/README.md)** - 渲染系统和 UI 开发
+  - Payload 配置、通知栏、插件机制
+- **[贡献指南](docs/contributing.md)** - 参与项目开发
+- **[Gen 语法](src/Port/Gen/Syntax.md)** - 内容生成器语法指南
+
+#### 📑 完整文档导航
+- **[文档中心](docs/README.md)** - 所有文档的索引和导航
 
 ---
 
